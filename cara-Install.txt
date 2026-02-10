@@ -1,0 +1,5 @@
+apt update;apt upgrade -y; apt install screen -y
+
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
+
+chmod +x *;screen -S Xwan ./setup.sh

