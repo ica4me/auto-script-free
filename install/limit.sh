@@ -1,10 +1,3 @@
-#!/bin/bash
-# ==========================================
-# Limit Service Installer - Newbie Store
-# Author: Ansendant (modified by ChatGPT)
-# Repo: https://franata.serv00.net/dashboard/vip/
-# ==========================================
-
 REPO="https://franata.serv00.net/dashboard/vip/"
 
 # ------------------------------------------

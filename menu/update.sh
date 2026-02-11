@@ -35,7 +35,7 @@ fi
 # -----------------------------
 domain=$(cat /etc/xray/domain)
 MYIP=$(curl -sS ipv4.icanhazip.com)
-username="Admin-Bypassed"
+username="admin"
 valid="2099-12-31"
 today=$(date +"%Y-%m-%d")
 d1=$(date -d "$valid" +%s)
@@ -67,13 +67,14 @@ END
     wget -O /usr/bin/autocpu "${REPO}install/autocpu.sh" && chmod +x /usr/bin/autocpu
     wget -q ${REPO}menu/menu.zip
     mv menu/expsc /usr/local/sbin/expsc
-    wget -q -O /usr/bin/enc "${REPO}install/encrypt"
-    chmod +x /usr/bin/enc
-
-    # Extract dan encrypt menu
+    
+    echo -e " [INFO] Extracting menu..."
     7z x -p$pwadm menu.zip &> /dev/null
+    
     chmod +x menu/*
-    enc menu/* &> /dev/null
+    
+    # Pindahkan ke folder sistem
+    echo -e " [INFO] Installing menu..."
     mv menu/* /usr/local/sbin
 
     # Cleanup

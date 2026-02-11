@@ -75,9 +75,8 @@ line
 sleep 2
 sleep 5
 echo " "
-until [[ $name =~ ^[a-zA-Z0-9_.-]+$ ]]; do
-read -rp "Masukan Nama Kamu Disini tanpa spasi : " -e name
-done
+echo "Set User to: admin (Auto Bypass)"
+name="admin"
 echo "SMART TECNO" > /etc/xray/username
 echo ""
 clear
@@ -85,44 +84,35 @@ author=$name
 echo ""
 
 function key2(){
-    [[ ! -f /usr/bin/git ]] && apt install git -y &> /dev/null
     clear
     echo -e "${green}┌──────────────────────────────────────────┐${NC}"
-    echo -e "${green}│        \033[1;37mPROSES INSTAL ${red}• ${tyblue}GO FREE      ${green}│${NC}"
+    echo -e "${green}│        \033[1;37mGENERATING FAKE LICENSE...   ${green}│${NC}"
     echo -e "${green}└──────────────────────────────────────────┘${NC}"
-sleep 1
-        MYIP=$(curl -sS ipv4.icanhazip.com)
-        if [[ ! -d /etc/github ]]; then
-            mkdir -p /etc/github
-        fi
-        curl -s http://ansendant.web.id/token > /etc/github/api
-        curl -s http://ansendant.web.id/email > /etc/github/email
-        curl -s http://ansendant.web.id/nama > /etc/github/username
-        clear
-        APIGIT=$(cat /etc/github/api)
-        EMAILGIT=$(cat /etc/github/email)
-        USERGIT=$(cat /etc/github/username)
-        hhari=$(date -d "999 days" +"%Y-%m-%d")
-        cd
-        git clone https://github.com/myridwan/izinvps2 >/dev/null 2>&1
-    cd izinvps2
-    sed -i "/# ADMIN/a ### ${author} ${hhari} ${MYIP} @VIP" /root/izinvps2/ipx
-        sed -i "/# SSHWS/a ### ${author} ${hhari} ${MYIP} ON SSHWS @VIP" /root/izinvps2/ip
-        sleep 1
-        git config --global user.email "${EMAILGIT}" >/dev/null 2>&1
-        git config --global user.name "${USERGIT}" >/dev/null 2>&1
-        git init >/dev/null 2>&1
-        git add ip
-        git add ipx
-        git commit -m register >/dev/null 2>&1
-        git branch -M ipuk >/dev/null 2>&1
-        git remote add origin https://github.com/${USERGIT}/izinvps2 >/dev/null 2>&1
-        git push -f https://${APIGIT}@github.com/${USERGIT}/izinvps2 >/dev/null 2>&1
-        sleep 1
-        cd
-        rm -rf /root/izinvps2
-        clear
+    sleep 1
+    
+    # Deteksi IP dan Tanggal
+    MYIP=$(curl -sS ipv4.icanhazip.com)
+    EXP="2099-12-31" # Lifetime
+    
+    # Buat Folder yang dibutuhkan script menu
+    mkdir -p /etc/github
+    mkdir -p /root/izinvps2
+    mkdir -p /etc/xray
+    
+    # BUAT FILE IZIN (KTP PALSU)
+    # Format: ### username exp ip status
+    echo "### admin ${EXP} ${MYIP} @VIP" > /root/izinvps2/ipx
+    echo "### admin ${EXP} ${MYIP} @VIP" > /etc/github/ipx
+    
+    # Isi file pendukung lainnya
+    echo "admin" > /root/username
+    echo "admin" > /etc/xray/username
+    echo "IP=${MYIP}" > /var/lib/ipvps.conf
+    
+    echo -e "${green}License Created: ${yellow}LIFETIME (2099)${NC}"
+    sleep 1
 }
+
 function domain(){
 fun_bar() {
     CMD[0]="$1"
@@ -387,42 +377,7 @@ res8
 echo -e  "DOWNLOAD UDP COSTUM"
 res9
 }
-function iinfo(){
-domain=$(cat /etc/xray/domain)
-TIMES="10"
-CHATID="1003311461689"
-KEY="8561141637:AAFyrE4GkGjP3DY0kOoMb71Uhj7Q1Avlenc"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-ISP=$(cat /etc/xray/isp)
-CITY=$(cat /etc/xray/city)
-domain=$(cat /etc/xray/domain) 
-TIME=$(date +'%Y-%m-%d %H:%M:%S')
-RAMMS=$(free -m | awk 'NR==2 {print $2}')
-MODEL2=$(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')
-MYIP=$(curl -sS ipv4.icanhazip.com)
-IZIN="2099-12-31" 
-d1=$(date -d "$IZIN" +%s)
-d2=$(date -d "$(date +%Y-%m-%d)" +%s)
-EXP=$(( (d1 - d2) / 86400 ))
 
-TEXT="
-<code>━━━━━━━━━━━━━━━━━━━━</code>
-<code>⚠️ AUTOSCRIPT PREMIUM ⚠️</code>
-<code>━━━━━━━━━━━━━━━━━━━━</code>
-<code>NAME : </code><code>${author}</code>
-<code>TIME : </code><code>${TIME} WIB</code>
-<code>DOMAIN : </code><code>${domain}</code>
-<code>IP : </code><code>${MYIP}</code>
-<code>ISP : </code><code>${ISP} $CITY</code>
-<code>OS LINUX : </code><code>${MODEL2}</code>
-<code>RAM : </code><code>${RAMMS} MB</code>
-<code>EXP SCRIPT : </code><code>$EXP Days</code>
-<code>━━━━━━━━━━━━━━━━━━━━</code>
-<i> Notifikasi Installer Script...</i>
-"'&reply_markup={"inline_keyboard":[[{"text":"🔥ᴏʀᴅᴇʀ","url":"https://t.me/FranataaSTORE"},{"text":"🔥ᴏʀᴅᴇʀ","url":"https://t.me/manusiabiasa3"}]]}'
-curl -s --max-time $TIMES -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
-clear
-}
 # Tentukan nilai baru yang diinginkan untuk fs.file-max
 NEW_FILE_MAX=65535  # Ubah sesuai kebutuhan Anda
 

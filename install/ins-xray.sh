@@ -75,18 +75,29 @@ bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release
 progress_bar 5 "Xray Core v${latest_version} install"
 
 # ===============================
-# 🔐 SSL CERTIFICATE
+# 🔐 SSL CERTIFICATE (MODIFIED SAFE MODE)
 # ===============================
 echo -e "[ ${YELLOW}•${NC} ] Generating SSL Certificate..."
 systemctl stop nginx haproxy >/dev/null 2>&1
 mkdir -p /root/.acme.sh
+
+# Coba Install SSL Asli (Lets Encrypt)
 curl -s https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
 chmod +x /root/.acme.sh/acme.sh
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1
 /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
 /root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
 /root/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-progress_bar 6 "SSL Certificate"
+
+# CEK APAKAH SSL BERHASIL? JIKA TIDAK, BUAT SELF-SIGNED (AGAR TIDAK ERROR)
+if [ ! -f /etc/xray/xray.crt ]; then
+    echo -e "[ ${RED}WARN${NC} ] Acme SSL Failed! Using Self-Signed Certificate instead..."
+    openssl req -x509 -newkey rsa:4096 -keyout /etc/xray/xray.key -out /etc/xray/xray.crt -days 3650 -nodes -subj "/CN=$domain"
+fi
+
+# Gabungkan untuk Haproxy
+cat /etc/xray/xray.key /etc/xray/xray.crt > /etc/haproxy/hap.pem
+progress_bar 6 "SSL Certificate Setup"
 
 # ===============================
 # 🧩 UUID & CONFIG XRAY (TIDAK DIUBAH)
