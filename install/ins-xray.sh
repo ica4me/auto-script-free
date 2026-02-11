@@ -30,10 +30,7 @@ progress_bar() {
   echo -e "] ${GREEN}DONE${NC}"
 }
 
-# ===============================
-# 🌐 REPO
-# ===============================
-REPO="https://franata.serv00.net/dashboard/vip/"
+REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 
 clear
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
