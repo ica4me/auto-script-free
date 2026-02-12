@@ -26,7 +26,7 @@ err()     { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 # ---------------------------
 # 🌐 Konfigurasi (edit bila perlu)
 # ---------------------------
-REPO="https://franata.serv00.net/dashboard/vip/"
+REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 DOMAIN="myrid.web.id"            # domain utama (jangan ganti jika ingin otomatis)
 # Cara aman: export CF_ID & CF_KEY di shell sebelum menjalankan script,
 # atau ganti baris di bawah ini jika mau hardcode (tidak disarankan).

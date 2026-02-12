@@ -24,7 +24,7 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 # ──────────────────────────────
 # ⚙️  Variabel Utama
 # ──────────────────────────────
-REPO="https://franata.serv00.net/dashboard/vip/"
+REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 RCLONE_CONF="${REPO}install/rclone.conf"
 
 # ──────────────────────────────

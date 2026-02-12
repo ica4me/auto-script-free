@@ -21,7 +21,7 @@ fi
 # Link Hosting Kalian
 sudo apt install python3
 
-wget -O /usr/local/bin/ws "https://franata.serv00.net/dashboard/vip/sshws/ws"
+wget -O /usr/local/bin/ws "https://raw.githubusercontent.com/ica4me/auto-script-free/main/sshws/ws"
 chmod +x /usr/local/bin/ws
 
 # Installing Service
@@ -49,7 +49,7 @@ systemctl enable ws.service
 systemctl start ws.service
 systemctl restart ws.service
 
-wget -O /usr/local/bin/ws-ovpn "https://franata.serv00.net/dashboard/vip/sshws/ws"
+wget -O /usr/local/bin/ws-ovpn "https://raw.githubusercontent.com/ica4me/auto-script-free/main/sshws/ws"
 chmod +x /usr/local/bin/ws-ovpn
 
 # Installing Service

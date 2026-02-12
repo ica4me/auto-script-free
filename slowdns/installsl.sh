@@ -1,5 +1,5 @@
 #!/bin/sh
-REPOS="https://franata.serv00.net/dashboard/vip/"
+REPOS="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 ns_domain_cloudflare() {
 	DOMAIN=$(cat /etc/xray/domain | cut -d "." -f2-4)
 	DOMAIN_PATH=$(cat /etc/xray/domain)

@@ -4,6 +4,7 @@ sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1
 REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 function CEKIP () {
 echo -e "Bypassing IP Check..."
+key2
 domain
 Pasang
 }
@@ -69,8 +70,7 @@ echo -e "${yellow}License activation required for full features.${NC}"
 sleep 0.4
 line
 # ===== LINK =====
-echo -e "${green}Activation & Subscription:${NC}"
-echo -e "${cyan}https://franata.serv00.net/dashboard/${NC}"
+echo -e "${cyan}GoGreen and Go Free Aja${NC}"
 line
 sleep 2
 sleep 5
@@ -86,25 +86,27 @@ echo ""
 function key2(){
     clear
     echo -e "${green}┌──────────────────────────────────────────┐${NC}"
-    echo -e "${green}│        \033[1;37mGENERATING FAKE LICENSE...   ${green}│${NC}"
+    echo -e "${green}│        \033[1;37mGENERATING LOCAL LICENSE...   ${green}│${NC}"
     echo -e "${green}└──────────────────────────────────────────┘${NC}"
     sleep 1
     
-    # Deteksi IP dan Tanggal
+    # Deteksi IP
     MYIP=$(curl -sS ipv4.icanhazip.com)
-    EXP="2099-12-31" # Lifetime
+    EXP="2099-12-31" # Lifetime sampai tahun 2099
     
-    # Buat Folder yang dibutuhkan script menu
+    # --- BAGIAN PENTING: Membuat File yang DIBACA oleh MENU ---
+    # Menu membaca /usr/bin/user dan /usr/bin/e
+    echo "admin" > /usr/bin/user
+    echo "$EXP" > /usr/bin/e
+    echo "$EXP" > /usr/bin/ver 
+    
+    # File pendukung lainnya (untuk kompatibilitas script lain)
     mkdir -p /etc/github
     mkdir -p /root/izinvps2
     mkdir -p /etc/xray
     
-    # BUAT FILE IZIN (KTP PALSU)
-    # Format: ### username exp ip status
     echo "### admin ${EXP} ${MYIP} @VIP" > /root/izinvps2/ipx
     echo "### admin ${EXP} ${MYIP} @VIP" > /etc/github/ipx
-    
-    # Isi file pendukung lainnya
     echo "admin" > /root/username
     echo "admin" > /etc/xray/username
     echo "IP=${MYIP}" > /var/lib/ipvps.conf
@@ -476,16 +478,7 @@ cd
 #iinfo
 echo -e "${green}┌────────────────────────────────────────────┐${NC}"
 echo -e "${green}│${NC}           ${green}INSTALL SCRIPT SELESAI${NC}           ${green}│${NC}"
-echo -e "${green}│${NC}                 ${cyan}SMART TECNO${NC}                ${green}│${NC}"
 echo -e "${green}├────────────────────────────────────────────┤${NC}"
-echo -e "${green}│${NC}  ${yellow}Aktivasi & Pembelian Resmi${NC}                ${green}│${NC}"
-echo -e "${green}│${NC}  ${cyan}https://franata.serv00.net/dashboard${NC}      ${green}│${NC}"
-echo -e "${green}├────────────────────────────────────────────┤${NC}"
-echo -e "${green}│${NC}  ${yellow}Top Up Saldo (${cyan}Admin Resmi${NC})${NC}                ${green}│${NC}"
-echo -e "${green}│${NC}  ${NC}[${red}•${NC}] 0878-6727-2855${NC}                        ${green}│${NC}"
-echo -e "${green}│${NC}  ${NC}[${red}•${NC}] 0822-4196-7317              ${NC}(${cyan}CREATOR${NC})${NC} ${green}│${NC}"
-echo -e "${green}└────────────────────────────────────────────┘${NC}"
-echo  ""
 sleep 4
 echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
 read answer

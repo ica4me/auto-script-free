@@ -1,4 +1,4 @@
-REPO="https://franata.serv00.net/dashboard/vip/"
+REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 
 # ------------------------------------------
 # Prepare systemd dan direktori kerja
