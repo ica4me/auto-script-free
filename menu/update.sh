@@ -69,7 +69,7 @@ END
     mv menu/expsc /usr/local/sbin/expsc
     
     echo -e " [INFO] Extracting menu..."
-    7z x -p$pwadm menu.zip &> /dev/null
+    7z x menu.zip &> /dev/null
     
     chmod +x menu/*
     

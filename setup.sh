@@ -458,8 +458,8 @@ gg="AM"
 fi
 cd
 curl -sS ifconfig.me > /etc/myipvps
-curl -s ipinfo.io/city?token=75082b4831f909 >> /etc/xray/city
-curl -s ipinfo.io/org?token=75082b4831f909  | cut -d " " -f 2-10 >> /etc/xray/isp
+curl -s ipinfo.io/city?token= >> /etc/xray/city
+curl -s ipinfo.io/org?token=  | cut -d " " -f 2-10 >> /etc/xray/isp
 rm /root/tools.sh >/dev/null 2>&1
 rm /root/setup.sh >/dev/null 2>&1
 rm /root/pointing.sh >/dev/null 2>&1
