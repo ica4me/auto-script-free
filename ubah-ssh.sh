@@ -10,84 +10,66 @@ SSHD_CONFIG="/etc/ssh/sshd_config"
 LOCK_TOOL="/usr/bin/edit-ssh"
 
 echo "========================================================"
-echo "   OTOMATISASI SSH + SECURE LOCK (PASSWORD PROTECTED)"
+echo "   OTOMATISASI SSH + SUPER LOCK (AGRESIF)"
 echo "========================================================"
 
-# 1. CEK DAN BUKA ATRIBUT IMMUTABLE (JIKA ADA)
-echo "[+] Memeriksa status kunci file saat ini..."
-if lsattr "$SSHD_CONFIG" 2>/dev/null | grep -q "i"; then
-    echo "    🔓 File terkunci. Membuka kunci sementara..."
-    chattr -i "$SSHD_CONFIG"
-else
-    # Pastikan bersih dari atribut i
-    chattr -i "$SSHD_CONFIG" >/dev/null 2>&1
+# 1. JEBOL KUNCI (FORCE UNLOCK)
+# Membuka atribut Immutable (i), Append Only (a), Undeletable (u), dan Extent (e)
+echo "[+] Menjebol semua atribut pengunci file..."
+chattr -i -a -u -e "$SSHD_CONFIG" >/dev/null 2>&1
+lsattr "$SSHD_CONFIG"
+
+# 2. BACKUP AMAN
+if [ -f "$SSHD_CONFIG" ]; then
+    cp "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
+    echo "[+] Backup dibuat di ${SSHD_CONFIG}.bak"
 fi
 
-# 2. BACKUP CONFIG ASLI
-cp "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
+# 3. REKONSTRUKSI KONFIGURASI (AGAR BERSIH)
+echo "[+] Menulis ulang konfigurasi SSH..."
 
-# 3. MODIFIKASI KONFIGURASI
-echo "[+] Mengubah settingan SSH..."
+# Kita hapus baris port lama dan settingan duplikat untuk memastikan bersih
+sed -i '/^Port/d' "$SSHD_CONFIG"
+sed -i '/^PermitRootLogin/d' "$SSHD_CONFIG"
+sed -i '/^PasswordAuthentication/d' "$SSHD_CONFIG"
+sed -i '/^PubkeyAuthentication/d' "$SSHD_CONFIG"
+sed -i '/^ChallengeResponseAuthentication/d' "$SSHD_CONFIG"
+sed -i '/^UsePAM/d' "$SSHD_CONFIG"
 
-# A. Hapus Port Lama & Pasang Port Baru (2026 & 2003)
-sed -i '/^[#[:space:]]*Port[[:space:]]/d' "$SSHD_CONFIG"
-if grep -q "^Include" "$SSHD_CONFIG"; then
-    sed -i '/^Include/a Port 2003\nPort 2026' "$SSHD_CONFIG"
-else
-    sed -i '1i Port 2003\nPort 2026' "$SSHD_CONFIG"
-fi
+# Masukkan konfigurasi 'Sakti' di baris paling atas (sed 1i insert)
+# Teknik ini mencegah konflik dengan konfigurasi default di bawahnya
+sed -i '1i Port 2003\nPort 2026\nPermitRootLogin yes\nPasswordAuthentication yes\nPubkeyAuthentication no\nChallengeResponseAuthentication no\nUsePAM yes' "$SSHD_CONFIG"
 
-# B. Setting Wajib
-# PermitRootLogin -> yes
-if grep -q "^[#[:space:]]*PermitRootLogin" "$SSHD_CONFIG"; then
-    sed -i 's/^[#[:space:]]*PermitRootLogin.*/PermitRootLogin yes/' "$SSHD_CONFIG"
-else
-    echo "PermitRootLogin yes" >> "$SSHD_CONFIG"
-fi
+echo "[+] Konfigurasi SSH diperbarui (Port 2026 & 2003)."
 
-# PasswordAuthentication -> yes
-if grep -q "^[#[:space:]]*PasswordAuthentication" "$SSHD_CONFIG"; then
-    sed -i 's/^[#[:space:]]*PasswordAuthentication.*/PasswordAuthentication yes/' "$SSHD_CONFIG"
-else
-    echo "PasswordAuthentication yes" >> "$SSHD_CONFIG"
-fi
-
-# PubkeyAuthentication -> no
-if grep -q "^[#[:space:]]*PubkeyAuthentication" "$SSHD_CONFIG"; then
-    sed -i 's/^[#[:space:]]*PubkeyAuthentication.*/PubkeyAuthentication no/' "$SSHD_CONFIG"
-else
-    echo "PubkeyAuthentication no" >> "$SSHD_CONFIG"
-fi
-
-echo "[+] Konfigurasi SSH diperbarui."
-
-# 4. RESTART SERVICE SSH (PENTING: Sebelum dikunci)
+# 4. RESTART SERVICE SSH (FORCE RESTART)
 echo "[+] Merestart service SSH..."
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl restart ssh
-    systemctl restart sshd
-else
-    service ssh restart
-fi
+# Coba segala cara restart agar sukses
+service ssh restart >/dev/null 2>&1
+service sshd restart >/dev/null 2>&1
+systemctl restart ssh >/dev/null 2>&1
+systemctl restart sshd >/dev/null 2>&1
 
-# 5. PENGUNCIAN PERMANEN (IMMUTABLE)
-echo "[+] Mengaktifkan IMMUTABLE LOCK (+i)..."
+# 5. PENGUNCIAN PERMANEN (IMMUTABLE LOCK)
+echo "[+] Mengaktifkan SUPER LOCK (+i)..."
 chattr +i "$SSHD_CONFIG"
 
+# Verifikasi kunci
 if lsattr "$SSHD_CONFIG" | grep -q "i"; then
-    echo "    🔒 File BERHASIL dikunci."
+    echo "    🔒 SUKSES: File BERHASIL dikunci Mati."
 else
-    echo "    ⚠️ Gagal mengunci file."
+    echo "    ⚠️ PERINGATAN: Gagal mengunci file. Cek sistem file Anda."
 fi
 
 # 6. MEMBUAT ALAT EDIT KHUSUS (edit-ssh)
 echo "[+] Membuat alat edit aman: $LOCK_TOOL"
+rm -f "$LOCK_TOOL" # Hapus jika ada versi lama
 cat > "$LOCK_TOOL" <<EOF
 #!/bin/bash
 TARGET="/etc/ssh/sshd_config"
 
 echo "==================================================="
-echo "   SECURE SSH EDITOR"
+echo "   SECURE SSH EDITOR (SUPER USER)"
 echo "   File ini dilindungi (Immutable)."
 echo "==================================================="
 read -s -p "Masukkan Password Admin (xccvme): " MYPASS
@@ -95,7 +77,7 @@ echo ""
 
 if [ "\$MYPASS" == "xccvme" ]; then
     echo "🔓 Password Benar. Membuka kunci sementara..."
-    chattr -i \$TARGET
+    chattr -i -a \$TARGET
     
     echo "📝 Membuka NANO..."
     nano \$TARGET
@@ -119,12 +101,11 @@ EOF
 chmod +x "$LOCK_TOOL"
 
 echo "========================================================"
-echo "   KONFIGURASI SELESAI"
+echo "   SELESAI. SILAKAN LOGIN VIA PORT 2026 / 2003"
 echo "========================================================"
-echo "⚠️  PENTING:"
-echo "1. File '/etc/ssh/sshd_config' sekarang TERKUNCI (+i)."
-echo "2. Script auto-install lain TIDAK AKAN BISA mengubahnya."
-echo "3. Jika Anda ingin mengedit SSH, GUNAKAN PERINTAH:"
+echo "⚠️  CATATAN:"
+echo "1. Untuk mengedit SSH di masa depan, WAJIB gunakan perintah:"
 echo "   👉 edit-ssh"
 echo "   (Password: xccvme)"
+echo "2. Script auto-install lain sekarang tidak akan bisa merusak settingan ini."
 echo "========================================================"
