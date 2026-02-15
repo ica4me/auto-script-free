@@ -1,0 +1,14 @@
+cat <<EOF > deploy.sh
+#!/bin/bash
+apt update -y; apt upgrade -y; apt install screen curl wget -y
+wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
+chmod +x setup.sh
+cat > /root/run-fixes.sh <<END
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh | bash
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh | bash
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh | bash
+END
+sed -i 's/reboot/bash \/root\/run-fixes.sh \&\& reboot/g' setup.sh
+screen -S Xwan ./setup.sh
+EOF
+chmod +x deploy.sh && ./deploy.sh
