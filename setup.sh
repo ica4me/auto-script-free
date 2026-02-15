@@ -478,29 +478,21 @@ cd
 
 echo -e "${green}Running Security & Fix Scripts...${NC}"
 
-# 1. Fix SSH Port (Ubah ke 2026, 2003, PermitRootLogin Yes)
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh && chmod +x ubah-ssh.sh && ./ubah-ssh.sh
-rm -f ubah-ssh.sh
-
-# 2. Fix Profile (Hapus menu macet & banner)
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh && chmod +x fix-profile.sh && ./fix-profile.sh
-rm -f fix-profile.sh
-
-# 3. Reset User (Hapus user lain, buat user xccvme)
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh && chmod +x reset-user.sh && ./reset-user.sh
-rm -f reset-user.sh
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh | bash
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh | bash
+curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh | bash
 
 # ============================================
 
 #iinfo
-echo -e "${green}┌────────────────────────────────────────────┐${NC}"
+#echo -e "${green}┌────────────────────────────────────────────┐${NC}"
 echo -e "${green}│${NC}           ${green}INSTALL SCRIPT SELESAI${NC}           ${green}│${NC}"
-echo -e "${green}├────────────────────────────────────────────┤${NC}"
-sleep 4
-echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
-read answer
-if [ "$answer" == "${answer#[Yy]}" ] ;then
-exit 0
-else
-reboot
-fi
+#echo -e "${green}├────────────────────────────────────────────┤${NC}"
+#sleep 4
+#echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
+#read answer
+#if [ "$answer" == "${answer#[Yy]}" ] ;then
+#exit 0
+#else
+#reboot
+#fi
