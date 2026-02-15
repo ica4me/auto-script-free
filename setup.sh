@@ -481,18 +481,24 @@ echo -e "${green}Running Security & Fix Scripts...${NC}"
 curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh | bash
 curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh | bash
 curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh | bash
+systemctl mask reboot.target
+systemctl mask shutdown.target
+systemctl mask poweroff.target
 
 # ============================================
 
 #iinfo
-#echo -e "${green}┌────────────────────────────────────────────┐${NC}"
+echo -e "${green}┌────────────────────────────────────────────┐${NC}"
 echo -e "${green}│${NC}           ${green}INSTALL SCRIPT SELESAI${NC}           ${green}│${NC}"
-#echo -e "${green}├────────────────────────────────────────────┤${NC}"
-#sleep 4
-#echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
-#read answer
-#if [ "$answer" == "${answer#[Yy]}" ] ;then
-#exit 0
-#else
-#reboot
-#fi
+echo -e "${green}├────────────────────────────────────────────┤${NC}"
+sleep 4
+echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
+read answer
+if [ "$answer" == "${answer#[Yy]}" ] ;then
+exit 0
+else
+systemctl unmask reboot.target
+systemctl unmask shutdown.target
+systemctl unmask poweroff.target
+reboot
+fi
