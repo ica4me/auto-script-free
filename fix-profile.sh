@@ -11,44 +11,63 @@ DOWNLOAD_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/pro
 LOCK_SCRIPT="/usr/bin/edit-profile"
 
 echo "========================================================"
-echo "   FIX PROFILE + PROTEKSI PASSWORD (IMMUTABLE)"
+echo "   FIX PROFILE: MODE JEBOL PAKSA (FORCE UNLOCK)"
 echo "========================================================"
 
-# 1. BUKA KUNCI LAMA (JIKA ADA)
-echo "[+] Membuka kunci immutable lama..."
-if lsattr "$TARGET_FILE" 2>/dev/null | grep -q "i"; then
-    chattr -i "$TARGET_FILE"
+# 1. DIAGNOSA & JEBOL KUNCI
+echo "[+] Memeriksa atribut file saat ini..."
+lsattr "$TARGET_FILE"
+
+echo "[+] MENJEBOL SEMUA KUNCI (-i dan -a)..."
+# Hapus immutable dan append-only sekaligus
+chattr -i -a "$TARGET_FILE" >/dev/null 2>&1
+# Coba lagi dengan sudo (jaga-jaga)
+sudo chattr -i -a "$TARGET_FILE" >/dev/null 2>&1
+
+# Verifikasi apakah kunci terbuka
+if lsattr "$TARGET_FILE" | grep -q "[ia]"; then
+    echo "    ⚠️ PERINGATAN: Atribut masih terdeteksi! Mencoba metode kasar..."
 fi
 
-# 2. HAPUS & DOWNLOAD FILE BARU
-echo "[+] Mengganti file .profile..."
+# 2. HAPUS FILE LAMA (METODE PENGHANCURAN)
+echo "[+] Menghapus file lama..."
+
+# Langkah A: Kosongkan isi file (Truncate) - Seringkali berhasil walau rm gagal
+echo -n > "$TARGET_FILE"
+
+# Langkah B: Hapus file
 rm -f "$TARGET_FILE"
-wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL"
 
-# Cek & Fallback jika download gagal
-if [ ! -s "$TARGET_FILE" ]; then
-    echo "    ⚠️ Download gagal/kosong. Membuat default..."
-    cat > "$TARGET_FILE" <<EOF
-# ~/.profile: executed by Bourne-compatible login shells.
-if [ "$BASH" ]; then
-  if [ -f ~/.bashrc ]; then
-    . ~/.bashrc
-  fi
+# Cek apakah file masih ada (Bandell!!)
+if [ -f "$TARGET_FILE" ]; then
+    echo "    ❌ GAGAL HAPUS! File ini sangat keras kepala."
+    echo "    ⚠️ Mencoba menimpa paksa..."
+    # Langkah C: Timpa paksa dengan download baru
+    wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL"
+else
+    echo "    ✅ File lama BERHASIL dimusnahkan."
+    # Download file baru
+    wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL"
 fi
-mesg n || true
-clear
-EOF
+
+# 3. VERIFIKASI ISI FILE
+# Cek apakah file masih mengandung script jahat "NEWBIE STORE"
+if grep -q "NEWBIE STORE" "$TARGET_FILE"; then
+    echo "    ❌ GAWAT: File masih berisi script jahat! Sistem file Anda mungkin Read-Only."
+    exit 1
+else
+    echo "    ✅ File profile BERHASIL diperbarui dan BERSIH."
 fi
 
 chmod 644 "$TARGET_FILE"
-echo "    ✅ File profile berhasil diperbarui."
 
-# 3. KUNCI MATI (IMMUTABLE)
-echo "[+] Mengaktifkan IMMUTABLE (+i)..."
+# 4. KUNCI MATI (IMMUTABLE)
+echo "[+] Mengaktifkan PROTEKSI IMMUTABLE (+i)..."
 chattr +i "$TARGET_FILE"
 
-# 4. BUAT ALAT EDIT KHUSUS BERPASSWORD
+# 5. BUAT ALAT EDIT KHUSUS BERPASSWORD
 echo "[+] Membuat alat edit khusus: edit-profile"
+rm -f "$LOCK_SCRIPT" # Hapus script edit lama jika ada
 cat > "$LOCK_SCRIPT" <<EOF
 #!/bin/bash
 echo "==================================================="
@@ -60,7 +79,7 @@ echo ""
 
 if [ "\$mypass" == "xccvme" ]; then
     echo "🔓 Password Benar. Membuka kunci sementara..."
-    chattr -i $TARGET_FILE
+    chattr -i -a $TARGET_FILE
     
     echo "📝 Membuka NANO..."
     nano $TARGET_FILE
@@ -82,7 +101,7 @@ echo "   PROTEKSI SELESAI"
 echo "========================================================"
 echo "⚠️  CATATAN PENTING:"
 echo "1. File '/root/.profile' sekarang TERKUNCI PERMANEN (+i)."
-echo "2. Script lain TIDAK BISA mengubah file ini."
+echo "2. Script jahat sebelumnya SUDAH DIHAPUS."
 echo "3. Jika Anda ingin mengedit, GUNAKAN PERINTAH:"
 echo "   👉 edit-profile"
 echo "   (Password: xccvme)"
