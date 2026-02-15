@@ -7,73 +7,83 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 TARGET_FILE="/root/.profile"
-BACKUP_FILE="/root/.profile.bak"
 DOWNLOAD_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/profile"
+LOCK_SCRIPT="/usr/bin/edit-profile"
 
 echo "========================================================"
-echo "   FIX & REPLACE /root/.profile OTOMATIS"
+echo "   FIX PROFILE + PROTEKSI PASSWORD (IMMUTABLE)"
 echo "========================================================"
 
-# 1. CEK DAN BUKA ATRIBUT IMMUTABLE (Anti-Hapus)
-echo "[+] Memeriksa atribut file $TARGET_FILE..."
+# 1. BUKA KUNCI LAMA (JIKA ADA)
+echo "[+] Membuka kunci immutable lama..."
 if lsattr "$TARGET_FILE" 2>/dev/null | grep -q "i"; then
-    echo "    ⚠️ File terdeteksi IMMUTABLE (Terkunci)."
-    echo "    🔓 Mencoba membuka paksa kunci immutable..."
     chattr -i "$TARGET_FILE"
-    if [ $? -eq 0 ]; then
-        echo "    ✅ Berhasil membuka kunci."
-    else
-        echo "    ❌ Gagal membuka kunci. Pastikan VPS support chattr."
-        # Lanjut saja, siapa tahu tidak benar-benar terkunci
-    fi
-else
-    # Jalankan chattr -i untuk memastikan bersih
-    chattr -i "$TARGET_FILE" >/dev/null 2>&1
-    echo "    ✅ File status normal (Writable)."
 fi
 
-# 2. HAPUS FILE LAMA
-if [ -f "$TARGET_FILE" ]; then
-    echo "[+] Menghapus file lama..."
-    rm -f "$TARGET_FILE"
-    if [ $? -eq 0 ]; then
-         echo "    ✅ File lama terhapus."
-    else
-         echo "    ❌ Gagal menghapus file lama."
-         exit 1
-    fi
-fi
-
-# 3. DOWNLOAD FILE BARU DARI GITHUB
-echo "[+] Mendownload file baru dari Repository..."
+# 2. HAPUS & DOWNLOAD FILE BARU
+echo "[+] Mengganti file .profile..."
+rm -f "$TARGET_FILE"
 wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL"
 
-# Cek apakah download sukses
-if [ -s "$TARGET_FILE" ]; then
-    echo "    ✅ Download Sukses!"
-else
-    echo "    ❌ Download Gagal atau File Kosong!"
-    echo "    ⚠️ Membuat file .profile standar default Debian/Ubuntu..."
-    # Fallback jika link mati: Buat .profile standar aman
+# Cek & Fallback jika download gagal
+if [ ! -s "$TARGET_FILE" ]; then
+    echo "    ⚠️ Download gagal/kosong. Membuat default..."
     cat > "$TARGET_FILE" <<EOF
 # ~/.profile: executed by Bourne-compatible login shells.
-
 if [ "$BASH" ]; then
   if [ -f ~/.bashrc ]; then
     . ~/.bashrc
   fi
 fi
-
 mesg n || true
 clear
 EOF
-    echo "    ✅ File default berhasil dibuat (Backup Plan)."
 fi
 
-# 4. ATUR IZIN FILE
 chmod 644 "$TARGET_FILE"
+echo "    ✅ File profile berhasil diperbarui."
 
-# 5. RESTART SYSTEM
+# 3. KUNCI MATI (IMMUTABLE)
+echo "[+] Mengaktifkan IMMUTABLE (+i)..."
+chattr +i "$TARGET_FILE"
+
+# 4. BUAT ALAT EDIT KHUSUS BERPASSWORD
+echo "[+] Membuat alat edit khusus: edit-profile"
+cat > "$LOCK_SCRIPT" <<EOF
+#!/bin/bash
+echo "==================================================="
+echo "   SECURE PROFILE EDITOR"
+echo "   File ini dilindungi (Immutable)."
+echo "==================================================="
+read -s -p "Masukkan Password Admin: " mypass
+echo ""
+
+if [ "\$mypass" == "xccvme" ]; then
+    echo "🔓 Password Benar. Membuka kunci sementara..."
+    chattr -i $TARGET_FILE
+    
+    echo "📝 Membuka NANO..."
+    nano $TARGET_FILE
+    
+    echo "🔒 Mengunci kembali file..."
+    chattr +i $TARGET_FILE
+    echo "✅ Selesai. File aman kembali."
+else
+    echo "❌ PASSWORD SALAH! Akses ditolak."
+    echo "   File tetap terkunci dan tidak bisa diedit."
+    exit 1
+fi
+EOF
+
+chmod +x "$LOCK_SCRIPT"
+
 echo "========================================================"
-echo "   NEW PROFILE "
+echo "   PROTEKSI SELESAI"
+echo "========================================================"
+echo "⚠️  CATATAN PENTING:"
+echo "1. File '/root/.profile' sekarang TERKUNCI PERMANEN (+i)."
+echo "2. Script lain TIDAK BISA mengubah file ini."
+echo "3. Jika Anda ingin mengedit, GUNAKAN PERINTAH:"
+echo "   👉 edit-profile"
+echo "   (Password: xccvme)"
 echo "========================================================"
