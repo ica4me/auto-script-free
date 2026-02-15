@@ -427,16 +427,16 @@ echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
 sudo chattr +i /etc/resolv.conf
 sudo systemctl start systemd-resolved
 sudo systemctl enable systemd-resolved
-cat> /root/.profile << END
-if [ "$BASH" ]; then
-if [ -f ~/.bashrc ]; then
-. ~/.bashrc
-fi
-fi
-mesg n || true
-clear
-welcome
-END
+#cat> /root/.profile << END
+#if [ "$BASH" ]; then
+#if [ -f ~/.bashrc ]; then
+#. ~/.bashrc
+#fi
+#fi
+#mesg n || true
+#clear
+#welcome
+#END
 chmod 644 /root/.profile
 if [ -f "/root/log-install.txt" ]; then
 rm /root/log-install.txt > /dev/null 2>&1
