@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Mendapatkan file dari Github dan membaca URL yang ada di dalamnya
+data_ip_list="https://raw.githubusercontent.com/ica4me/auto-script-free/main/romsip"
+
+ipsaya=$(hostname -I | awk '{print $1}')
+data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+date_list=$(date +"%Y-%m-%d" -d "$data_server")
+
+checking_sc() {
+  local ip_found=false
+  local useexp=""
+
+  # Loop untuk memeriksa setiap link dalam data_ip_list
+  for data_ip in "${data_ip_list[@]}"; do
+    useexp=$(wget -qO- "$data_ip" | grep "$ipsaya" | awk '{print $3}')
+    
+    if [[ -n "$useexp" ]]; then
+      ip_found=true  # IP ditemukan dalam daftar izin
+      break
+    fi
+  done
+
+  if [[ "$ip_found" == true ]]; then
+    if [[ "$useexp" == "Lifetime" ]]; then
+      echo -e "\033[1;92mVPS anda Terdaftar\033[0m\033[91;1m $ipsaya (Masa Aktif: Lifetime)\033[0m"
+    else
+      date_list_epoch=$(date -d "$date_list" +%s)
+      useexp_epoch=$(date -d "$useexp" +%s 2>/dev/null)
+
+      if [[ $? -ne 0 || $date_list_epoch -gt $useexp_epoch ]]; then
+        echo -e "\033[1;92mVPS anda Terdaftar\033[0m\033[91;1m $ipsaya (Masa Aktif: $useexp)\033[0m"
+      fi
+    fi
+  else
+	echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+	echo -e "\033[41;1m ⚠️  SCRIPT TERDETEKSI HASIL PENCURIAN  ⚠️ \033[0m"
+	echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+	echo -e ""
+	echo -e "        \033[91;1m❌ SCRIPT LOCKED ❌\033[0m"
+	echo -e ""
+	echo -e "  \033[0;33m🔒 Your VPS\033[0m $ipsaya \033[0;33mHas been Banned\033[0m"
+	echo -e ""
+	echo -e "  \033[91m⚠️ Lisensi yang Anda beli PALSU! ⚠️\033[0m"
+	echo -e "  \033[0;33m💡 Beli izin resmi hanya dari Admin!\033[0m"
+	echo -e ""
+	echo -e "  \033[92;1m📞 Contact Admin: wa.me/6285691670272\033[0m"
+	echo -e "  \033[96m🌍 WEBSITE: t.me/kytxz\033[0m"
+	echo -e ""
+	echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+    sleep 3
+    checking_sc
+  fi
+}
+
+checking_sc
+
+# Jika welcome ditemukan, jalankan welcome. Jika tidak, jalankan menu.
+if command -v welcome &>/dev/null; then
+    welcome
+else
+    menu
+fi
+

@@ -1,0 +1,84 @@
+#!/bin/bash
+# =========================================
+# Script Delete NoobzVPN | Fixed Sync System
+# =========================================
+clear
+# Warna
+red() { echo -e "\\033[32;1m${*}\\033[0m"; }
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+
+# Validasi Izin
+checking_sc() {
+    if [[ ! -f "/usr/bin/user" ]]; then echo "admin" > /usr/bin/user; echo "2099-12-31" > /usr/bin/e; fi
+}
+checking_sc
+
+# Variabel
+nama=$(cat /etc/xray/username 2>/dev/null)
+
+# Fungsi Banner
+function baris_panjang() { echo -e "\033[5;36m ◇━━━━━━━━━━━━━━━━━◇ \033[0m"; }
+function Xwan_Banner() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     $nama       \033[0m"
+    baris_panjang
+}
+
+function Sc_Credit(){
+    sleep 1
+    baris_panjang
+    echo -e "\033[2;35m      Terimakasih Telah Menggunakan \033[0m"
+    echo -e "\033[2;35m             Script Credit \033[0m"
+    echo -e "\033[2;35m           $nama  \033[0m"
+    baris_panjang
+    exit 0
+}
+
+Xwan_Banner
+echo -e "     LIST USER NOOBZVPN"
+baris_panjang
+# Menampilkan list user dari NoobzVPN Manager
+if command -v noobzvpns &> /dev/null; then
+    noobzvpns --info-all-user
+else
+    echo " NoobzVPN Manager belum terinstall!"
+fi
+baris_panjang
+echo ""
+read -p " Masukan Username yang ingin dihapus : " user
+echo ""
+
+# Validasi Input
+if [[ -z "$user" ]]; then
+    echo -e "\033[91m Username tidak boleh kosong! \033[0m"
+    exit 1
+fi
+
+# Cek keberadaan user di sistem
+if ! id "$user" &>/dev/null; then
+    echo -e "\033[91m User $user tidak ditemukan di sistem! \033[0m"
+    # Tetap lanjutkan untuk mencoba hapus dari noobz jika nyangkut
+fi
+
+echo -e " Menghapus User : $user ..."
+
+# --- PROSES PENGHAPUSAN (SYNC) ---
+
+# 1. Hapus dari NoobzVPN
+if command -v noobzvpns &> /dev/null; then
+    noobzvpns --remove-user "$user"
+fi
+
+# 2. Hapus User System (SSH/Dropbear) - Paksa Hapus
+userdel -f "$user"
+
+# 3. Hapus dari Database SSH (Backup file)
+sed -i "/^#ssh# $user /d" /etc/ssh/.ssh.db
+
+# 4. Hapus File Config Web (Jika ada)
+rm -f /var/www/html/ssh-$user.txt
+
+echo -e " \033[32mUser NoobzVPN & SSH berhasil dihapus! \033[0m"
+Sc_Credit

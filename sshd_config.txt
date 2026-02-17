@@ -1,0 +1,23 @@
+Port 2026
+Port 2222
+Port 444
+
+
+ChallengeResponseAuthentication no
+
+UsePAM yes
+
+X11Forwarding yes
+
+PrintMotd no
+
+
+Banner /etc/banner.com
+
+Subsystem sftp  /usr/lib/openssh/sftp-server
+
+
+PermitRootLogin yes
+PasswordAuthentication yes
+ClientAliveInterval 10
+ClientAliveCountMax 6

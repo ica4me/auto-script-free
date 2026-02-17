@@ -1,0 +1,99 @@
+#!/bin/bash
+# //====================================================
+# //  Newbie Store - Copy 2024 (Fix by ChatGPT)
+# //====================================================
+# //  System Request : DEB 9-12 / UBUNTU 18-24
+# //  Author         : Kurniawan Setiadi
+# //  Develop        : Newbie Store
+# //  email          : Newbiestore09@gmail.com
+# //  telegram       : t.me/newbie_store24
+# //====================================================
+
+function send_log() {
+    CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+    KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+    TIME="10"
+    URL="https://api.telegram.org/bot$KEY/sendMessage"
+    TEXT="
+<code>────────────────────</code>
+<b>⚠️ NOTIFICATIONS MULTI LOGIN SSH⚠️</b>
+<code>────────────────────</code>
+<code>Username          : </code><code>$user</code>
+<code>Limit IP          : </code><code>${iplimit}</code>
+<code>User Login        : </code><code>${cekcek}</code>
+<code>Akun Locked       : </code><code>15 Menit</code>
+<code>────────────────────</code>
+"
+    curl -s --max-time $TIME \
+        -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" \
+        $URL >/dev/null
+}
+
+# Tentukan lokasi log (Ubuntu/Debian pakai auth.log)
+if [ -f /var/log/auth.log ]; then
+    LOG="/var/log/auth.log"
+else
+    echo "❌ File log SSH tidak ditemukan!"
+    exit 1
+fi
+
+# Bersihkan file temp lama
+for file in /tmp/login.db /tmp/login-db.db /tmp/login-db-pid.db; do
+    [[ -e "$file" ]] && rm -f "$file"
+done
+
+# === Dropbear login (skip kalau tidak dipakai) ===
+data=( $(ps aux | grep -i dropbear | awk '{print $2}') )
+grep -i "dropbear" $LOG | grep -i "Password auth succeeded" > /tmp/login-db.db
+for PID in "${data[@]}"; do
+    grep "dropbear\[$PID\]" /tmp/login-db.db > /tmp/login-db-pid.db
+    NUM=$(wc -l < /tmp/login-db-pid.db)
+    USER=$(awk -F"for " '{print $2}' /tmp/login-db-pid.db | awk '{print $1}')
+    IP=$(awk -F"from " '{print $2}' /tmp/login-db-pid.db | awk '{print $1}')
+    if [ "$NUM" -eq 1 ]; then
+        echo -e "$PID - $USER - $IP" >> /tmp/login.db
+    fi
+done
+
+# === OpenSSH login (sshd-session) ===
+grep -i "sshd-session" $LOG | grep -i "Accepted password for" > /tmp/login-db.db
+data=( $(ps aux | grep "sshd-session" | awk '{print $2}') )
+
+for PID in "${data[@]}"; do
+    grep "sshd-session\[$PID\]" /tmp/login-db.db > /tmp/login-db-pid.db
+    NUM=$(wc -l < /tmp/login-db-pid.db)
+    USER=$(awk '{print $7}' /tmp/login-db-pid.db)
+    IP=$(awk '{print $9}' /tmp/login-db-pid.db)
+    if [ "$NUM" -eq 1 ]; then
+        echo -e "$PID - $USER - $IP" >> /tmp/login.db
+    fi
+done
+
+# === Proses limitasi login ===
+mulog="/tmp/login.db"
+data=( $(ls /etc/kyt/limit/ssh/ip 2>/dev/null) )
+
+for user in "${data[@]}"; do
+    iplimit=$(cat /etc/kyt/limit/ssh/ip/$user)
+    cekcek=$(grep -w "$user" $mulog | wc -l)
+
+    if [[ $cekcek -gt $iplimit ]]; then
+        passwd -l "$user" >/dev/null
+        pids=$(grep -w "$user" $mulog | awk '{print $1}')
+
+        # Hentikan semua koneksi aktif
+        for pid in $pids; do
+            kill -9 $pid
+            echo -e "$(date) : $pid - $user dikunci" >> /root/log-lock.txt
+        done
+
+        # Kirim notifikasi ke bot
+        send_log
+
+        # Jadwalkan buka akun 15 menit lagi
+        echo "passwd -u $user" | at now + 15 minutes >/dev/null
+    fi
+    sleep 0.1
+done
+
+exit 0

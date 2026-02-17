@@ -1,0 +1,248 @@
+#!/bin/bash
+
+clear
+red() { echo -e "\\033[32;1m${*}\${NC}"; }
+clear
+#IZIN SCRIPT
+MYIP=$(curl -sS ipv4.icanhazip.com)
+echo -e "\e[32mloading...\e[0m"
+clear
+red() { echo -e "\\033[32;1m${*}\${NC}"; }
+nama=$(cat /etc/xray/username 2>/dev/null || echo "Script-Xwan")
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\e[0m'
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+
+# Efek tambahan
+BLINK_GREEN="\033[5;32m"
+BLINK_RED="\033[5;31m"
+
+# Background
+BG_BLU="\033[44;1m" # BG BIRU
+
+# // Get Bot
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+export TIME="10"
+export URL="https://api.telegram.org/bot$KEY/sendMessage"
+clear
+
+# Valid Script
+ipsaya=$(curl -sS ipv4.icanhazip.com)
+data_server=$(curl -v --insecure --silent https://google.com/ 2>&1 | grep Date | sed -e 's/< Date: //')
+date_list=$(date +"%Y-%m-%d" -d "$data_server")
+LOCAL_IP_FILE="/etc/izinvps2/ipx"   # simpan data GitHub di sini
+GITHUB_IP_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/romsip"
+update_data() {
+    echo "Mengupdate data dari GitHub..."
+    mkdir -p $(dirname "$LOCAL_IP_FILE")
+    curl -sS "$GITHUB_IP_URL" -o "$LOCAL_IP_FILE"
+    echo "Data berhasil diupdate!"
+}
+if [[ "$1" == "update" ]]; then
+    update_data
+    exit 0
+fi
+if [[ ! -f "$LOCAL_IP_FILE" ]]; then
+    echo "File lokal tidak ditemukan, mengambil data dari GitHub..."
+    update_data
+fi
+MYIP=$(curl -sS ipv4.icanhazip.com)
+echo "admin" > /usr/bin/user
+echo "2099-12-31" > /usr/bin/e
+username="admin"
+valid="2099-12-31"
+
+# Fungsi cek masa aktif
+checking_sc() {
+    useexp="$valid"
+    if [[ "$useexp" == "Lifetime" ]]; then
+        return
+    fi
+
+    date_list_epoch=$(date -d "$date_list" +%s)
+    useexp_epoch=$(date -d "$useexp" +%s 2>/dev/null)
+
+    if [[ $? -ne 0 || $date_list_epoch -gt $useexp_epoch ]]; then
+        echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+        echo -e "\033[41;1m ⚠️       AKSES DI TOLAK         ⚠️ \033[0m"
+        echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+        echo -e ""
+        echo -e "        \033[91;1m❌ SCRIPT LOCKED ❌\033[0m"
+        echo -e ""
+        echo -e "  \033[0;33m🔒 Your VPS\033[0m $MYIP \033[0;33mHas been Banned\033[0m"
+        echo -e ""
+        echo -e "  \033[91m⚠️  Masa Aktif Sudah Habis ⚠️\033[0m"
+        echo -e "  \033[0;33m💡 Beli izin resmi hanya dari Admin!\033[0m"
+        echo -e ""
+        echo -e "  \033[92;1m📞 Contact Admin:\033[0m"
+        echo -e "  \033[96m📱 WhatsApp: https://wa.me/6282241967317\033[0m"
+        echo -e ""
+        echo -e "\033[1;93m────────────────────────────────────────────\033[0m"
+        exit 1
+    fi
+}
+checking_sc
+clear
+export TIME="10"
+IP=$(curl -sS ipv4.icanhazip.com)
+ISP=$(cat /etc/xray/isp)
+CITY=$(cat /etc/xray/city)
+domain=$(cat /etc/xray/domain)
+clear
+
+
+# . Liner 
+function baris_panjang() {
+  echo -e "${PURPLE} ———————————————————————————————————————${NC}"
+}
+
+function Xwan_Banner() {
+clear
+baris_panjang
+echo -e " ${BG_BLU}              $nama               ${NC}"
+baris_panjang
+}
+
+function Sc_Credit(){
+sleep 1
+baris_panjang
+echo -e "\033[2;35m      Terimakasih Telah Menggunakan ${NC}"
+echo -e "\033[2;35m             Script Credit ${NC}"
+echo -e "\033[2;35m           	Sabdo Palon  ${NC}"
+baris_panjang
+exit 1
+}
+
+# // jalankan perintah :  sleep 3 & loading $!
+loading() {
+  local pid=$1
+  local delay=0.1
+  local spin='-\|/'
+
+  while ps -p $pid > /dev/null; do
+    local temp=${spin#?}
+    printf "[%c] " "$spin"
+    local spin=$temp${spin%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+
+  printf "    \b\b\b\b"
+}
+
+
+
+g="\e[92;1m"
+RED="\033[31m"
+y='\033[1;93m'
+
+LIMITSSH_SCRIPT="/usr/local/sbin/limitssh-ip"
+CRON_FILE="/etc/cron.d/limitssh-ip"
+
+check_cron_status() {
+    if [ -e "$CRON_FILE" ]; then
+        echo -e "\033[33m Status Limit IP : ${g}[ON]${NC}"
+    else
+        echo -e "\033[33m Status Limit IP : ${RED}[OFF]${NC}"
+    fi
+}
+
+start_cron() {
+clear
+    # Input menit dari pengguna
+baris_panjang
+echo -e "\033[37m Just input a number in- ${NC}" 
+echo -e "\033[33m Limit ip ssh ${NC}"
+echo -e "\033[37m Format minutes ${NC}"
+echo 
+echo -e "\033[31m Example : ${NC}"
+echo
+echo -e "\033[32m 1   =   1 minutes ${NC}"
+echo -e "\033[32m 2   =   2 minutes ${NC}"
+echo
+baris_panjang
+echo
+echo
+    read -p "input minutes autokill (1-59): " menit
+sleep 3 & loading $!
+
+    # Validasi input
+    if [[ ! "$menit" =~ ^[1-9]$|^[1-5][0-9]$ ]]; then
+        echo -e "${RED}Input tidak valid.${NC}"
+        return
+    fi
+
+    # Membuat isi tugas cron
+    CRON_ENTRY="*/$menit * * * * root $LIMITSSH_SCRIPT"
+
+    # Menambahkan atau memperbarui tugas cron
+    echo -e "SHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n$CRON_ENTRY" | tee "$CRON_FILE" > /dev/null
+
+    # Pastikan izin file dan tugas cron
+    chmod +x "$LIMITSSH_SCRIPT"
+    chmod 644 "$CRON_FILE"
+    
+clear
+Xwan_Banner
+baris_panjang
+echo
+echo -e "\e[32m succesfully ${NC}"
+echo
+check_cron_status
+echo -e "\033[33m Auto Shutdown   : $menit minutes${NC}"
+echo
+baris_panjang
+Sc_Credit
+read -p "Enter Back To Menu"
+Lt-on-off
+}
+
+stop_cron() {
+    rm -f "$CRON_FILE"
+    Xwan_Banner
+    baris_panjang
+    echo
+    echo -e "\033[32m succesfully ${NC}"
+    echo
+    echo -e " Status  : ${RED}NonActive${NC}"
+    echo
+    baris_panjang
+    Sc_Credit
+}
+
+
+
+function Environment(){
+clear
+Xwan_Banner
+baris_panjang
+check_cron_status
+baris_panjang
+echo
+echo -e "${CYAN} 1.  Start Limit Ip ssh ${NC}"
+echo -e "${CYAN} 2.  Stopp Limit Ip ssh ${NC}"
+echo -e "${CYAN} 3.  Check Status Limit${NC}"
+echo -e "\033[31m x.  EXIT ${NC}"
+echo
+baris_panjang
+echo
+}
+Environment
+read -p "Select From Options [1/3 or x] :  " REPLY
+    case $REPLY in
+        1)
+            start_cron
+            ;;
+        2)
+            stop_cron
+            ;;
+        3)
+            check_cron_status
+            ;;
+        *)
+            exit
+            ;;
+    esac

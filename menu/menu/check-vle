@@ -1,0 +1,66 @@
+#!/bin/bash
+# =========================================
+# Script Check & List User VLESS | Fixed
+# =========================================
+clear
+# Warna
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+ungu='\033[0;35m'
+Green='\033[0;32m'
+Red='\033[0;31m'
+
+nama=$(cat /etc/xray/username 2>/dev/null)
+[[ -z "$nama" ]] && nama="Admin"
+
+function baris_panjang() { echo -e "${ungu}——————————————————————————————————————————————————${NC}"; }
+function Xwan_Banner() {
+  clear
+  baris_panjang
+  echo -e "${BlueCyan}           LIST & CHECK LOGIN VLESS               ${NC}"
+  echo -e "${BlueCyan}               Owner: $nama                       ${NC}"
+  baris_panjang
+}
+
+Xwan_Banner
+
+# Header Tabel
+printf " %-3s | %-15s | %-15s | %-10s\n" "NO" "USER" "IP LOGIN" "STATUS"
+baris_panjang
+
+# Cek apakah database ada
+if [[ ! -f "/etc/vless/.vless.db" ]]; then
+    echo -e "          DATABASE TIDAK DITEMUKAN"
+    baris_panjang
+    exit 0
+fi
+
+# Ambil semua user dari Database
+users=( `grep '^###' /etc/vless/.vless.db | cut -d ' ' -f 2` )
+n=1
+
+if [[ -z "${users[@]}" ]]; then
+    echo -e "          TIDAK ADA USER TERDAFTAR"
+else
+    for user in "${users[@]}"; do
+        # Cari IP di access log xray dalam 5 menit terakhir
+        login_ip=$(grep -w "$user" /var/log/xray/access.log | tail -n 20 | awk '{print $3}' | cut -d: -f1 | sort | uniq | xargs)
+        
+        if [[ -z "$login_ip" ]]; then
+            # Jika tidak ada di log (Offline)
+            status="${Red}OFFLINE${NC}"
+            login_ip="      -      "
+        else
+            # Jika ditemukan di log (Online)
+            status="${Green}ONLINE${NC}"
+        fi
+        
+        printf " %-3s | %-15s | %-15s | %-10s\n" "$n" "$user" "$login_ip" "$status"
+        n=$((n+1))
+    done
+fi
+
+baris_panjang
+echo ""
+read -rp " Tekan [ Enter ] untuk kembali ke Menu"
+m-xray

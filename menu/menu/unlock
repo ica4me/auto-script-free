@@ -1,0 +1,116 @@
+#!/bin/bash
+# ==========================================
+# Color
+NC='\e[0m'
+NC='\e[0m'
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+YELLOW='\033[0;33m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BG_BLU="\033[44;1m" # BG BIRU
+BLINK_GREEN="\033[5;32m"
+BLINK_RED="\033[5;31m"
+# ==========================================
+
+nama=$(cat /etc/xray/username 2>/dev/null || echo "Script-Xwan")
+
+function baris_panjang() {
+  echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Banner
+function Xwan_Banner() {
+clear
+baris_panjang
+echo -e " ${BG_BLU}                 $nama                     ${NC}"
+baris_panjang
+}
+
+function Sc_Credit(){
+sleep 1
+baris_panjang
+echo -e "${CYAN}  Terimakasih Telah Menggunakan ${NC}"
+echo -e "${CYAN}          Script Credit ${NC}"
+echo -e "${CYAN}          $nama ${NC}"
+baris_panjang
+exit 1
+}
+
+frames=("██10%" "█████35%" "█████████65%" "█████████████80%" "█████████████████████90%" "█████████████████████████100%")
+
+Loading_Animasi() {
+    for frame in "${frames[@]}"; do
+        clear
+        echo -e "\n\n\n\e[1;35m $frame\e[0m"   # animasi pakai ungu
+        sleep 0.4
+    done
+}
+
+Loading_Succes() {
+clear
+echo -e  "${BLINK_GREEN}Succes${NC}"
+sleep 1
+clear
+}
+
+# ========================= MAIN =========================
+Xwan_Banner
+echo -e "${PURPLE}┌───────────────────────────────────────────────┐${NC}"
+echo " No  USERNAME           EXP DATE         STATUS"
+echo -e "${PURPLE}└───────────────────────────────────────────────┘${NC}"
+
+i=0
+declare -A user_list
+while read expired
+do
+  AKUN="$(echo $expired | cut -d: -f1)"
+  ID="$(echo $expired | grep -v nobody | cut -d: -f3)"
+  exp="$(chage -l $AKUN | grep "Account expires" | awk -F": " '{print $2}')"
+  status="$(passwd -S $AKUN | awk '{print $2}' )"
+  if [[ $ID -ge 1000 ]]; then
+    i=$((i+1))
+    user_list[$i]=$AKUN
+    if [[ "$status" = "L" ]]; then
+      printf "[%-2s] %-17s %-20s %b\n" "$i" "$AKUN" "$exp" "${RED}LOCKED${NC}"
+    else
+      printf "[%-2s] %-17s %-20s %b\n" "$i" "$AKUN" "$exp" "${GREEN}UNLOCKED${NC}"
+    fi
+  fi
+done < /etc/passwd
+
+JUMLAH=$i
+echo -e "${PURPLE}┌───────────────────────────────────────────────┐${NC}"
+echo "   Total Account: $JUMLAH user"
+echo -e "${PURPLE}└───────────────────────────────────────────────┘${NC}"
+
+echo ""
+
+read -p "Pilih nomor user yang ingin di-UNLOCK: " num
+
+username=${user_list[$num]}
+
+if [[ -z "$username" ]]; then
+    clear
+    Xwan_Banner
+    baris_panjang
+    echo -e "${BLINK_RED} Pilihan tidak valid! ${NC}"
+    baris_panjang
+    exit 1
+fi
+
+# Proses unlock
+Loading_Animasi
+Loading_Succes
+
+passwd -u $username &>/dev/null
+clear
+Xwan_Banner
+baris_panjang
+echo -e "${BLINK_GREEN}   Successfully Unlocked ${NC}"
+echo -e ""
+echo -e "${YELLOW} Username  : $username ${NC}"
+echo -e "${CYAN} Status    : UNLOCKED!! ${NC}"
+echo -e ""
+baris_panjang
+Sc_Credit

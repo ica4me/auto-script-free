@@ -1,0 +1,448 @@
+#!/bin/bash
+# =========================================
+# Quick Setup | Script Me | SHADOWSOCKS FIX
+# =========================================
+clear
+# Warna Standard
+red() { echo -e "\\033[32;1m${*}\\033[0m"; }
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+
+# =========================================
+# 1. Validasi Izin Lokal (Self-Hosted Mode)
+# =========================================
+checking_sc() {
+    # Buat file izin otomatis jika tidak ada
+    if [[ ! -f "/usr/bin/user" ]] || [[ ! -f "/usr/bin/e" ]]; then
+        echo "admin" > /usr/bin/user
+        echo "2099-12-31" > /usr/bin/e
+    fi
+    # Pastikan isi file tidak kosong
+    if [[ -z $(cat /usr/bin/user) ]]; then
+        echo "admin" > /usr/bin/user
+    fi
+}
+checking_sc
+
+# =========================================
+# 2. Variabel & Konfigurasi
+# =========================================
+MYIP=$(curl -sS ipv4.icanhazip.com)
+ISP=$(cat /etc/xray/isp 2>/dev/null)
+CITY=$(cat /etc/xray/city 2>/dev/null)
+domain=$(cat /etc/xray/domain 2>/dev/null)
+nama=$(cat /etc/xray/username 2>/dev/null)
+
+# Telegram Bot Config
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3 2>/dev/null)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2 2>/dev/null)
+export TIME="10"
+export URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+# =========================================
+# 3. Fungsi Tampilan & Helper
+# =========================================
+function baris_panjang() {
+  echo -e "\033[5;36m ◇━━━━━━━━━━━━━━━━━◇ \033[0m"
+}
+
+function Xwan_Banner() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     $nama       \033[0m"
+    baris_panjang
+}
+
+function Sc_Credit(){
+    sleep 1
+    baris_panjang
+    echo -e "\033[2;35m      Terimakasih Telah Menggunakan \033[0m"
+    echo -e "\033[2;35m             Script Credit \033[0m"
+    echo -e "\033[2;35m           $nama  \033[0m"
+    baris_panjang
+    # Restart service untuk apply perubahan
+    systemctl restart xray > /dev/null 2>&1
+    exit 0
+}
+
+loading() {
+  local pid=$1
+  local delay=0.1
+  local spin='-\|/'
+  while ps -p $pid > /dev/null; do
+    local temp=${spin#?}
+    printf "[%c] " "$spin"
+    local spin=$temp${spin%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  printf "    \b\b\b\b"
+}
+
+# =========================================
+# 4. Input Data User
+# =========================================
+until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
+  Xwan_Banner
+  baris_panjang
+  echo -e " \033[32mJust input a number for-\033[0m"
+  echo -e " \033[32mQuota Limit\033[0m"
+  echo -e " \033[32mLimit IP\033[0m"
+  echo -e " \033[37mFormat GB\033[0m"
+  echo ""
+  echo -e " \033[33m0\033[0m \033[37mfor Unlimited\033[0m"
+  echo -e " \033[33m0\033[0m \033[37Mfor No Limit\033[0m"
+  echo ""
+  baris_panjang
+  echo ""
+  read -rp " Username         : " -e user
+
+  if grep -i -w -q "$user" /etc/xray/config.json; then
+    clear
+    Xwan_Banner
+    baris_panjang
+    echo ""
+    echo -e "\033[91m Name Salah: Username sudah terdaftar, silakan gunakan nama lain. \033[0m"
+    echo ""
+    baris_panjang
+    read -n 1 -s -r -p "Press any key to try again..."
+  else
+    CLIENT_EXISTS=0
+    break
+  fi
+done
+
+cipher="aes-128-gcm"
+uuid=$(cat /proc/sys/kernel/random/uuid)
+echo
+read -p " Limit User (GB)  : " Quota
+echo
+read -p " Limit User (IP)  : " iplimit
+echo
+read -p " Expired (days)   : " masaaktif
+echo
+echo -e "\033[2;32mCreate Account.....${NC}"
+sleep 2 & loading $!
+
+# =========================================
+# 5. Proses Pembuatan Config (INJEKSI BARU)
+# =========================================
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+
+# --- [FIX] INJECT CONFIG XRAY DENGAN PREPEND COMMA ---
+# Injeksi Shadowsocks WS
+sed -i '/#ssws$/i ,{"password": "'""$uuid""'","method": "'""$cipher""'","email": "'""$user""'"}' /etc/xray/config.json
+
+# Injeksi Shadowsocks GRPC
+sed -i '/#ssgrpc$/i ,{"password": "'""$uuid""'","method": "'""$cipher""'","email": "'""$user""'"}' /etc/xray/config.json
+# -----------------------------------------------------
+
+# Generate Base64 Link (Standard SS)
+echo $cipher:$uuid > /tmp/log
+shadowsocks_base64=$(cat /tmp/log)
+echo -n "${shadowsocks_base64}" | base64 > /tmp/log1
+shadowsocks_base64e=$(cat /tmp/log1)
+
+# SS WS Link
+sslinkws="ss://${shadowsocks_base64e}@${domain}:443?path=/ss-ws&security=tls&encryption=none&type=ws#${user}"
+nonsslinkws="ss://${shadowsocks_base64e}@${domain}:80?path=/ss-ws&security=none&encryption=none&type=ws#${user}"
+
+# SS GRPC Link
+sslinkgrpc="ss://${shadowsocks_base64e}@${domain}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=ss-grpc&sni=${domain}#${user}"
+nonsslinkgrpc="ss://${shadowsocks_base64e}@${domain}:80?mode=gun&security=none&encryption=none&type=grpc&serviceName=ss-grpc&sni=${domain}#${user}"
+
+# Buat file untuk OpenClash/Web
+rm -rf /tmp/log
+rm -rf /tmp/log1
+
+# JSON Custom 1 (WS)
+cat > /var/www/html/sodosokws-$user.txt <<-END
+{ 
+ "dns": {
+    "servers": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ]
+  },
+ "inbounds": [
+   {
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "userLevel": 8
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls"
+        ],
+        "enabled": true
+      },
+      "tag": "socks"
+    },
+    {
+      "port": 10809,
+      "protocol": "http",
+      "settings": {
+        "userLevel": 8
+      },
+      "tag": "http"
+    }
+  ],
+  "log": {
+    "loglevel": "none"
+  },
+  "outbounds": [
+    {
+      "mux": {
+        "enabled": true
+      },
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "$domain",
+            "level": 8,
+            "method": "$cipher",
+            "password": "$uuid",
+            "port": 443
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "security": "tls",
+        "tlsSettings": {
+          "allowInsecure": true,
+          "serverName": "${domain}"
+        },
+        "wsSettings": {
+          "headers": {
+            "Host": "$domain"
+          },
+          "path": "/ss-ws"
+        }
+      },
+      "tag": "proxy"
+    },
+    {
+      "protocol": "freedom",
+      "settings": {},
+      "tag": "direct"
+    },
+    {
+      "protocol": "blackhole",
+      "settings": {
+        "response": {
+          "type": "http"
+        }
+      },
+      "tag": "block"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "Asls",
+"rules": []
+  }
+}
+END
+
+# JSON Custom 2 (GRPC)
+cat > /var/www/html/sodosokgrpc-$user.txt <<-END
+{
+    "dns": {
+    "servers": [
+      "8.8.8.8",
+      "8.8.4.4"
+    ]
+  },
+ "inbounds": [
+   {
+      "port": 10808,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "userLevel": 8
+      },
+      "sniffing": {
+        "destOverride": [
+          "http",
+          "tls"
+        ],
+        "enabled": true
+      },
+      "tag": "socks"
+    },
+    {
+      "port": 10809,
+      "protocol": "http",
+      "settings": {
+        "userLevel": 8
+      },
+      "tag": "http"
+    }
+  ],
+  "log": {
+    "loglevel": "none"
+  },
+  "outbounds": [
+    {
+      "mux": {
+        "enabled": true
+      },
+      "protocol": "shadowsocks",
+      "settings": {
+        "servers": [
+          {
+            "address": "$domain",
+            "level": 8,
+            "method": "$cipher",
+            "password": "$uuid",
+            "port": 443
+          }
+        ]
+      },
+      "streamSettings": {
+        "grpcSettings": {
+          "multiMode": true,
+          "serviceName": "ss-grpc"
+        },
+        "network": "grpc",
+        "security": "tls",
+        "tlsSettings": {
+          "allowInsecure": true,
+          "serverName": "${domain}"
+        }
+      },
+      "tag": "proxy"
+    }
+  ],
+  "routing": {
+    "domainStrategy": "Asls",
+"rules": []
+  }
+}
+END
+
+# Folder & Database Checks
+if [ ! -e /etc/shadowsocks ]; then
+  mkdir -p /etc/shadowsocks
+fi
+
+if [[ $iplimit -gt 0 ]]; then
+    mkdir -p /etc/kyt/limit/shadowsocks/ip
+    echo -e "$iplimit" > /etc/kyt/limit/shadowsocks/ip/$user
+fi
+
+if [ -z ${Quota} ]; then
+  Quota="0"
+fi
+
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+
+if [[ ${c} != "0" ]]; then
+  echo "${d}" >/etc/shadowsocks/${user}
+fi
+
+DATADB=$(cat /etc/shadowsocks/.shadowsocks.db | grep "^###" | grep -w "${user}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${user}\b/d" /etc/shadowsocks/.shadowsocks.db
+  echo "### ${user} ${exp} ${uuid}" >>/etc/shadowsocks/.shadowsocks.db
+else
+  echo "### ${user} ${exp} ${uuid}" >>/etc/shadowsocks/.shadowsocks.db
+fi
+
+clear
+
+# =========================================
+# 6. Notifikasi Telegram & Output
+# =========================================
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>      SHADOWSOCKS</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>Remarks   : ${user}
+Domain    : ${domain}
+Limit Quota : ${Quota} GB
+Port TLS  : 400-900
+Port NTLS : 80, 8080, 8081-9999
+id        : ${uuid}
+alterId   : 0
+Security  : auto
+network   : ws or grpc
+Path      : /ss-ws
+Dynamic   : https://bugmu.com/path
+Name      : ss-grpc</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Format OpenClash : https://${domain}:81/sodosokws-$user.txt
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Aktif Selama   : $masaaktif Hari
+Dibuat Pada    : $tnggl
+Berakhir Pada  : $expe
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇
+*_PEMBELIAN BERHASIL_*
+◇━━━━━━━━━━━━━━━━━◇
+-» PRODUK : SHADOWSOCKS
+-» REGION : $CITY
+-» REQ CONFIG : 
+-» REQ NAMA : $user
+-» DEVICE : $iplimit IP
+-» HARGA : 
+-» AKTIF : $masaaktif HARI
+-» TGL EXP : $expe
+◇━━━━━━━━━━━━━━━━━◇
+$nama </code>"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+clear
+function Details_Account() {
+    echo -e "\033[37m SHADOWSOCKS \033[0m"
+    echo -e "\033[37m"
+    echo -e " Remarks     : ${user}"
+    echo -e " Domain      : ${domain}"
+    echo -e " User Quota  : ${Quota} GB"
+    echo -e " Port TLS    : 443-900"
+    echo -e " Password    : ${uuid}"
+    echo -e " Cipers      : aes-128-gcm"
+    echo -e " Network     : ws/grpc"
+    echo -e " Path        : /ss-ws"
+    echo -e " ServiceName : ss-grpc"
+    echo -e "\033[0m"
+}
+
+function Link_Json() {
+    baris_panjang
+    echo -e " Link WS TLS : ${sslinkws}"
+    baris_panjang
+    echo -e " Link WS     : ${nonsslinkws}"
+    baris_panjang
+    echo -e " Link GRPC   : ${sslinkgrpc}"
+    baris_panjang
+    echo -e " Save Account: https://$domain:81/sodosokws-$user.txt"
+    baris_panjang
+}
+
+function Details_Expiry() {
+    echo -e "\033[33m Expiry in   : $masaaktif Day \033[0m "
+}
+
+Xwan_Banner
+Details_Account
+Link_Json
+Details_Expiry
+Sc_Credit

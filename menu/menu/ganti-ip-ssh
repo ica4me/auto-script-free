@@ -1,0 +1,133 @@
+#!/bin/bash
+# ==========================================
+# Warna
+NC='\e[0m'
+RED='\e[1;31m'
+GREEN='\e[1;32m'
+PURPLE='\e[0;35m'
+CYAN='\e[0;36m'
+YELLOW='\e[0;33m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BG_BLU="\033[44;1m" # BG BIRU
+# ==========================================
+
+nama=$(cat /etc/xray/username 2>/dev/null || echo "Script-Xwan")
+
+function baris_panjang() {
+  echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Banner
+function Xwan_Banner() {
+clear
+baris_panjang
+echo -e " ${BG_BLU}                 $nama                     ${NC}"
+baris_panjang
+}
+
+function Sc_Credit(){
+sleep 1
+baris_panjang
+echo -e "${CYAN}  Terimakasih Telah Menggunakan ${NC}"
+echo -e "${CYAN}          Script Credit ${NC}"
+echo -e "${CYAN}           $nama ${NC}"
+baris_panjang
+exit 1
+}
+
+# ================= ANIMASI LOADING =================
+duration=6
+frames=("██10%" "█████35%" "█████████65%" "█████████████80%" "█████████████████████90%" "█████████████████████████100%")
+num_frames=${#frames[@]}
+num_iterations=$((duration))
+
+Loading_Animasi() {
+    for ((i = 0; i < num_iterations; i++)); do
+        clear
+        index=$((i % num_frames))
+        color_code=$((31 + i % 7))
+        echo -e "\n\n\n\e[1;${color_code}m ${frames[$index]}${NC}"
+        sleep 0.5
+    done
+}
+
+Loading_Succes() {
+clear
+echo -e  "\033[5;32mSucces${NC}"
+sleep 1
+clear
+}
+
+# ================= LIST USER =================
+clear
+Xwan_Banner
+echo -e "${PURPLE}┌───────────────────────────────────────────────┐${NC}"
+echo " No  USERNAME           EXP DATE         STATUS"
+echo -e "${PURPLE}└───────────────────────────────────────────────┘${NC}"
+
+i=0
+declare -A user_list
+while read expired
+do
+  AKUN="$(echo $expired | cut -d: -f1)"
+  ID="$(echo $expired | grep -v nobody | cut -d: -f3)"
+  exp="$(chage -l $AKUN | grep "Account expires" | awk -F": " '{print $2}')"
+  status="$(passwd -S $AKUN | awk '{print $2}' )"
+  if [[ $ID -ge 1000 ]]; then
+    i=$((i+1))
+    user_list[$i]=$AKUN
+    if [[ "$status" = "L" ]]; then
+      printf "[%-2s] %-17s %-20s %b\n" "$i" "$AKUN" "$exp" "${RED}LOCKED${NC}"
+    else
+      printf "[%-2s] %-17s %-20s %b\n" "$i" "$AKUN" "$exp" "${GREEN}UNLOCKED${NC}"
+    fi
+  fi
+done < /etc/passwd
+
+JUMLAH=$i
+echo -e "${PURPLE}┌───────────────────────────────────────────────┐${NC}"
+echo "   Total Account: $JUMLAH user"
+echo -e "${PURPLE}└───────────────────────────────────────────────┘${NC}"
+
+read -p "Pilih nomor user untuk edit IP Limit: " num
+user=${user_list[$num]}
+limit_file="/etc/kyt/limit/ssh/ip/$user"
+
+# ================= LOGIC IP LIMIT =================
+if [ -e "$limit_file" ]; then
+  current_iplimit=$(cat "$limit_file")
+  Xwan_Banner
+  baris_panjang
+  echo -e "${CYAN} Before ${NC}\n"
+  echo -e "${YELLOW} Username   : $user ${NC}"
+  echo -e "${YELLOW} IP Limit   : $current_iplimit ${NC}\n"
+  baris_panjang
+  echo ""
+  read -p "Input New Ip: " new_iplimit
+
+  Loading_Animasi
+  Loading_Succes
+
+  if [ -z "$new_iplimit" ]; then
+    echo -e "${RED} Invalid input! ${NC}"
+  else
+    echo "$new_iplimit" > "$limit_file"
+    Xwan_Banner
+    baris_panjang
+    echo -e "${GREEN} Successfully Updated ${NC}\n"
+    echo -e "${CYAN} After ${NC}\n"
+    echo -e "${YELLOW} Username : $user ${NC}"
+    echo -e "${YELLOW} New IP   : $new_iplimit ${NC}\n"
+    baris_panjang
+    Sc_Credit
+  fi
+else
+  Xwan_Banner
+  baris_panjang
+  echo -e "${RED} Sorry ${NC}\n"
+  echo -e "${YELLOW} Username : $user ${NC}"
+  echo -e "${YELLOW} IP Limit : Not Found!! ${NC}\n"
+  baris_panjang
+  Sc_Credit
+fi

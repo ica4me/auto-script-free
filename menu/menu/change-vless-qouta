@@ -1,0 +1,157 @@
+#!/bin/bash
+
+yellow="\033[0;33m"
+ungu="\033[0;35m"
+Red="\033[91;1m"
+Xark="\033[0m"
+BlueCyan="\033[5;36m"
+WhiteBe="\033[5;37m"
+GreenBe="\033[5;32m"
+YellowBe="\033[5;33m"
+BlueBe="\033[5;34m"
+nama=$(cat /etc/xray/username)
+
+# Garis
+function baris_panjang() {
+  echo -e "${ungu} ——————————————————————————————————— ${Xark}"
+}
+
+# Banner
+function Xwan_Banner() {
+  clear
+  baris_panjang
+  echo -e "${BlueCyan}           $nama      ${Xark}"
+  baris_panjang
+}
+
+# Credit
+function Sc_Credit() {
+  sleep 1
+  baris_panjang
+  echo -e "${BlueCyan}  Terimakasih Telah Menggunakan ${Xark}"
+  echo -e "${BlueCyan}          Script Credit ${Xark}"
+  echo -e "${BlueCyan}          $nama ${Xark}"
+  baris_panjang
+  exit 1
+}
+
+# Animasi Loading
+duration=3
+frames=("██10%" "█████35%" "█████████65%" "█████████████80%" "█████████████████████90%" "█████████████████████████100%")
+num_frames=${#frames[@]}
+num_iterations=$((duration))
+
+Loading_Animasi() {
+  for ((i = 0; i < num_iterations; i++)); do
+    clear
+    index=$((i % num_frames))
+    color_code=$((31 + i % 7))
+    echo ""
+    echo ""
+    echo ""
+    echo -e "\e[1;${color_code}m ${frames[$index]}\e[0m"
+    sleep 0.5
+  done
+}
+
+Loading_Succes() {
+  clear
+  echo -e  "\033[5;32mSucces\033[0m"
+  sleep 2
+  clear
+}
+
+# List User
+function Daftar_User_Vless() {
+  grep -E "^#& " "/etc/xray/config.json" | cut -d ' ' -f 2-3 | sort -u
+}
+
+# Ganti Quota
+function change_vless_quota() {
+  clear
+  Xwan_Banner
+  baris_panjang
+  echo -e "${WhiteBe} Daftar User VLESS:${Xark}"
+  baris_panjang
+
+  mapfile -t users < <(Daftar_User_Vless)
+
+  if [[ ${#users[@]} -eq 0 ]]; then
+    echo -e "${Red}Tidak ada user ditemukan!${Xark}"
+    Sc_Credit
+  fi
+
+  for i in "${!users[@]}"; do
+    nomor=$((i+1))
+    user=$(echo "${users[$i]}" | awk '{print $1}')
+    exp=$(echo "${users[$i]}" | awk '{print $2}')
+    echo -e "${yellow}$nomor${Xark}. ${WhiteBe}$user${Xark}  (Expired: $exp)"
+  done
+
+  baris_panjang
+  echo ""
+  read -p "Pilih nomor user: " pilih
+
+  if [[ -z "$pilih" || "$pilih" -lt 1 || "$pilih" -gt ${#users[@]} ]]; then
+    echo -e "${Red}Pilihan tidak valid!${Xark}"
+    Sc_Credit
+  fi
+
+  user=$(echo "${users[$((pilih-1))]}" | awk '{print $1}')
+  exp=$(echo "${users[$((pilih-1))]}" | awk '{print $2}')
+  quota_file="/etc/vless/${user}"
+
+  if [ -e "$quota_file" ]; then
+    current_quota=$(cat "$quota_file")
+    baris_panjang
+    echo -e "${BlueCyan} BEFORE ${Xark}"
+    echo ""
+    echo -e "${yellow} Username : $user ${Xark}"
+    echo -e "${yellow} Quota    : $((current_quota / 1024 / 1024 / 1024)) GB ${Xark}"
+    echo ""
+    baris_panjang
+    echo ""
+    read -p "Input New Quota (GB): " new_quota
+    echo ""
+
+    Loading_Animasi
+    Loading_Succes
+
+    if [[ -z "$new_quota" || ! "$new_quota" =~ ^[0-9]+$ ]]; then
+      baris_panjang
+      echo -e "${Red} Wrong Input Methode ${Xark}"
+      baris_panjang
+    else
+      new_quota_bytes=$((new_quota * 1024 * 1024 * 1024))
+      echo "${new_quota_bytes}" > "${quota_file}"
+
+      Xwan_Banner
+      baris_panjang
+      echo -e "${GreenBe}Succesfully Updated${Xark}"
+      echo ""
+      echo -e "${BlueCyan} AFTER ${Xark}"
+      echo ""
+      echo -e "${yellow}New Quota : $new_quota GB ${Xark}"
+      echo -e "${yellow}Username  : $user ${Xark}"
+      baris_panjang
+
+      # Update database
+      DATADB=$(grep "^###" /etc/vless/.vless.db | grep -w "${user}" | awk '{print $2}')
+      if [[ "${DATADB}" != '' ]]; then
+        sed -i "/\b${user}\b/d" /etc/vless/.vless.db
+      fi
+      uuid=$(grep -wE "$user" "/etc/xray/config.json" | cut -d '"' -f 4 | tail -n1)
+      iplimit=$(cat /etc/kyt/limit/vless/ip/${user} 2>/dev/null || echo "0")
+      echo "### ${user} ${exp} ${uuid} ${new_quota_bytes} ${iplimit}" >> /etc/vless/.vless.db
+
+      echo -e "${GreenBe}Database Update Succes.${Xark}"
+      Sc_Credit
+    fi
+  else
+    echo -e "${Red}Quota file tidak ditemukan untuk user ${user}.${Xark}"
+    Sc_Credit
+  fi
+}
+
+# Run
+change_vless_quota

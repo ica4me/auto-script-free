@@ -1,0 +1,9 @@
+#!/bin/bash
+# Fungsi helper untuk VMESS
+
+CONFIG_JSON="/etc/xray/config.json"
+
+restart_xray() {
+    systemctl restart xray >/dev/null 2>&1
+    echo "✅ Xray service restarted"
+}

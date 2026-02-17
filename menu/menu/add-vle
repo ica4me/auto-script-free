@@ -1,0 +1,340 @@
+#!/bin/bash
+# =========================================
+# Quick Setup | Script Me | VLESS FIX v2
+# =========================================
+clear
+# Warna Standard
+red() { echo -e "\\033[32;1m${*}\\033[0m"; }
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+
+# =========================================
+# 1. Validasi Izin Lokal (Self-Hosted Mode)
+# =========================================
+checking_sc() {
+    # Buat file izin otomatis jika tidak ada
+    if [[ ! -f "/usr/bin/user" ]] || [[ ! -f "/usr/bin/e" ]]; then
+        echo "admin" > /usr/bin/user
+        echo "2099-12-31" > /usr/bin/e
+    fi
+    # Pastikan isi file tidak kosong
+    if [[ -z $(cat /usr/bin/user) ]]; then
+        echo "admin" > /usr/bin/user
+    fi
+}
+checking_sc
+
+# =========================================
+# 2. Variabel & Konfigurasi
+# =========================================
+MYIP=$(curl -sS ipv4.icanhazip.com)
+ISP=$(cat /etc/xray/isp 2>/dev/null)
+CITY=$(cat /etc/xray/city 2>/dev/null)
+domain=$(cat /etc/xray/domain 2>/dev/null)
+nama=$(cat /etc/xray/username 2>/dev/null)
+
+# Telegram Bot Config
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3 2>/dev/null)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2 2>/dev/null)
+export TIME="10"
+export URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+# =========================================
+# 3. Fungsi Tampilan & Helper
+# =========================================
+function baris_panjang() {
+  echo -e "\033[5;36m ◇━━━━━━━━━━━━━━━━━◇ \033[0m"
+}
+
+function Xwan_Banner() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     $nama       \033[0m"
+    baris_panjang
+}
+
+function Sc_Credit(){
+    sleep 1
+    baris_panjang
+    echo -e "\033[2;35m      Terimakasih Telah Menggunakan \033[0m"
+    echo -e "\033[2;35m             Script Credit \033[0m"
+    echo -e "\033[2;35m           $nama  \033[0m"
+    baris_panjang
+    # Restart service untuk apply perubahan
+    systemctl restart xray > /dev/null 2>&1
+    exit 0
+}
+
+loading() {
+  local pid=$1
+  local delay=0.1
+  local spin='-\|/'
+  while ps -p $pid > /dev/null; do
+    local temp=${spin#?}
+    printf "[%c] " "$spin"
+    local spin=$temp${spin%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  printf "    \b\b\b\b"
+}
+
+function BANNER() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     XRAY VLESS    \033[0m"
+    baris_panjang
+}
+
+# =========================================
+# 4. Input Data User
+# =========================================
+until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
+  Xwan_Banner
+  BANNER
+  echo -e " \033[37mJust input a number for-\033[0m"
+  echo -e " \033[32mQuota Limit\033[0m"
+  echo -e " \033[32mLimit IP\033[0m"
+  echo -e " \033[37mFormat GB\033[0m"
+  echo ""
+  echo -e " \033[33m0\033[0m \033[37mfor Unlimited\033[0m"
+  echo -e " \033[33m0\033[0m \033[37Mfor No Limit\033[0m"
+  echo ""
+  baris_panjang
+  echo ""
+  read -rp " Username         : " -e user
+
+  if grep -i -w -q "$user" /etc/xray/config.json; then
+    clear
+    Xwan_Banner
+    baris_panjang
+    echo ""
+    echo -e "\033[91m Name Salah: Username sudah terdaftar, silakan gunakan nama lain. \033[0m"
+    echo ""
+    baris_panjang
+    read -n 1 -s -r -p "Press any key to try again..."
+  else
+    CLIENT_EXISTS=0
+    break
+  fi
+done
+
+uuid=$(cat /proc/sys/kernel/random/uuid)
+echo
+read -p " Limit User (GB)  : " Quota
+echo
+read -p " Limit User (IP)  : " iplimit
+echo
+read -p " Expired (days)   : " masaaktif
+echo
+echo -e "\033[2;32mCreate Account.....${NC}"
+sleep 2 & loading $!
+
+# =========================================
+# 5. Proses Pembuatan Config (INJEKSI BARU)
+# =========================================
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+
+# --- [FIX] INJECT CONFIG XRAY DENGAN PREPEND COMMA ---
+# VLESS WS
+sed -i '/#vless$/i ,{"id": "'""$uuid""'","email": "'""$user""'"}' /etc/xray/config.json
+# VLESS GRPC
+sed -i '/#vlessgrpc$/i ,{"id": "'""$uuid""'","email": "'""$user""'"}' /etc/xray/config.json
+# -----------------------------------------------------
+
+# Generate Links
+vlesslink1="vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws#${user}"
+vlesslink2="vless://${uuid}@${domain}:80?path=/vless&encryption=none&type=ws#${user}"
+vlesslink3="vless://${uuid}@${domain}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&sni=${domain}#${user}"
+
+# Buat file untuk OpenClash/Web
+cat >/var/www/html/vless-$user.txt <<-END
+======================
+$nama 
+======================
+# Format Vless WS TLS
+- name: Vless-$user-WS TLS
+  server: ${domain}
+  port: 443
+  type: vless
+  uuid: ${uuid}
+  cipher: auto
+  tls: true
+  skip-cert-verify: true
+  servername: ${domain}
+  network: ws
+  ws-opts:
+    path: /vless
+    headers:
+      Host: ${domain}
+
+# Format Vless WS Non TLS
+- name: Vless-$user-WS (CDN) Non TLS
+  server: ${domain}
+  port: 80
+  type: vless
+  uuid: ${uuid}
+  cipher: auto
+  tls: false
+  skip-cert-verify: false
+  servername: ${domain}
+  network: ws
+  ws-opts:
+    path: /vless
+    headers:
+      Host: ${domain}
+  udp: true
+
+# Format Vless gRPC (SNI)
+- name: Vless-$user-gRPC (SNI)
+  server: ${domain}
+  port: 443
+  type: vless
+  uuid: ${uuid}
+  cipher: auto
+  tls: true
+  skip-cert-verify: true
+  servername: ${domain}
+  network: grpc
+  grpc-opts:
+    grpc-mode: gun
+    grpc-service-name: vless-grpc
+
+======================
+Link Akun Vless 
+======================
+Link TLS      : 
+${vlesslink1}
+======================
+Link none TLS : 
+${vlesslink2}
+======================
+Link GRPC     : 
+${vlesslink3}
+======================
+Expired  : $masaaktif Day
+======================
+END
+
+# Folder & Database Checks
+if [ ! -e /etc/vless ]; then
+  mkdir -p /etc/vless
+fi
+
+if [[ $iplimit -gt 0 ]]; then
+    mkdir -p /etc/kyt/limit/vless/ip
+    echo -e "$iplimit" > /etc/kyt/limit/vless/ip/$user
+fi
+
+if [ -z ${Quota} ]; then
+  Quota="0"
+fi
+
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+
+if [[ ${c} != "0" ]]; then
+  echo "${d}" >/etc/vless/${user}
+fi
+
+DATADB=$(cat /etc/vless/.vless.db | grep "^###" | grep -w "${user}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${user}\b/d" /etc/vless/.vless.db
+  echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >>/etc/vless/.vless.db
+else
+  echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >>/etc/vless/.vless.db
+fi
+
+clear
+
+# =========================================
+# 6. Notifikasi Telegram & Output
+# =========================================
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>      XRAY/VLESS</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>Remarks   : ${user}
+Domain    : ${domain}
+Limit Quota : ${Quota} GB
+Port TLS  : 400-900
+Port NTLS : 80, 8080, 8081-9999
+id        :</code><code>${uuid}</code>
+<code>alterId   : 0
+Security  : auto
+network   : ws or grpc
+Path      : /Multi-Path
+Dynamic   : https://bugmu.com/path
+Name      : vless-grpc</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Format OpenClash : https://${domain}:81/vless-$user.txt
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Aktif Selama   : $masaaktif Hari
+Dibuat Pada    : $tnggl
+Berakhir Pada  : $expe
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇
+*_PEMBELIAN BERHASIL_*
+◇━━━━━━━━━━━━━━━━━◇
+-» PRODUK : VLESS
+-» REGION : $CITY
+-» REQ CONFIG : 
+-» REQ NAMA : $user
+-» DEVICE : $iplimit IP
+-» HARGA : 
+-» AKTIF : $masaaktif HARI
+-» TGL EXP : $expe
+◇━━━━━━━━━━━━━━━━━◇
+$nama </code>"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+clear
+function Details_Account() {
+    echo -e "\033[37m VLESS XRAY \033[0m"
+    baris_panjang
+    echo -e "\033[37m Remarks     : ${user} "
+    echo -e "\033[37m Domain      : ${domain}"
+    echo -e "\033[37m User Quota  : ${Quota} GB"
+    echo -e "\033[37m User Ip     : ${iplimit} IP"
+    echo -e "\033[37m port TLS    : 443-900"
+    echo -e "\033[37m port WS     : 80,8880,8080"
+    echo -e "\033[37m User ID     : ${uuid}"
+    echo -e "\033[37m Locations.  : $CITY"
+    echo -e "\033[37m ISP         : $ISP"
+    echo -e "\033[37m Encryption  : none"
+    echo -e "\033[37m Path TLS    : /vless "
+    echo -e "\033[37m ServiceName : vless-grpc"
+}
+
+function Link_Json() {
+    baris_panjang
+    echo -e "\033[37m Link TLS    : ${vlesslink1}"
+    baris_panjang
+    echo -e "\033[37m Link NTLS   : ${vlesslink2}"
+    baris_panjang
+    echo -e "\033[37m Link GRPC   : ${vlesslink3}"
+    baris_panjang
+    echo -e "\033[37m OpenClash   : https://${domain}:81/vless-$user.txt"
+}
+
+function Details_Expiry() {
+    baris_panjang
+    echo -e "\033[33m Days in    : $masaaktif Day \033[0m "
+    echo -e "\033[33m Expiry     : $expe \033[0m "
+}
+
+Xwan_Banner
+Details_Account
+Link_Json
+Details_Expiry
+Sc_Credit

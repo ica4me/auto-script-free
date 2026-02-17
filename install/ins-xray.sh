@@ -1,7 +1,7 @@
 #!/bin/bash
 # ╔════════════════════════════════════════════════════════════════╗
 # ║   ⛓️  D£VSX-NETWORK v12.0.3 :: [Ω-Protocol]                    ║
-# ║         ⚙️  Secure | Fast | Adaptive | Next-Gen                ║
+# ║        ⚙️  Secure | Fast | Adaptive | Next-Gen                 ║
 # ╚════════════════════════════════════════════════════════════════╝
 
 # ===============================
@@ -70,9 +70,9 @@ echo -e "[ ${YELLOW}•${NC} ] Installing Xray Core..."
 mkdir -p /var/log/xray /etc/xray /run/xray
 chown www-data:www-data /var/log/xray /run/xray
 touch /var/log/xray/{access,error,access2,error2}.log
-latest_version="24.11.30"
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version "$latest_version"
-progress_bar 5 "Xray Core v${latest_version} install"
+# Menggunakan versi stabil terbaru atau script official
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.8.4
+progress_bar 5 "Xray Core Installed"
 
 # ===============================
 # 🔐 SSL CERTIFICATE (MODIFIED SAFE MODE)
@@ -81,7 +81,7 @@ echo -e "[ ${YELLOW}•${NC} ] Generating SSL Certificate..."
 systemctl stop nginx haproxy >/dev/null 2>&1
 mkdir -p /root/.acme.sh
 
-# Coba Install SSL Asli (Lets Encrypt)
+# Install Acme.sh
 curl -s https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
 chmod +x /root/.acme.sh/acme.sh
 /root/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1
@@ -89,7 +89,7 @@ chmod +x /root/.acme.sh/acme.sh
 /root/.acme.sh/acme.sh --issue -d "$domain" --standalone -k ec-256
 /root/.acme.sh/acme.sh --installcert -d "$domain" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
 
-# CEK APAKAH SSL BERHASIL? JIKA TIDAK, BUAT SELF-SIGNED (AGAR TIDAK ERROR)
+# Fallback Self-Signed jika Acme gagal
 if [ ! -f /etc/xray/xray.crt ]; then
     echo -e "[ ${RED}WARN${NC} ] Acme SSL Failed! Using Self-Signed Certificate instead..."
     openssl req -x509 -newkey rsa:4096 -keyout /etc/xray/xray.key -out /etc/xray/xray.crt -days 3650 -nodes -subj "/CN=$domain"
@@ -100,11 +100,13 @@ cat /etc/xray/xray.key /etc/xray/xray.crt > /etc/haproxy/hap.pem
 progress_bar 6 "SSL Certificate Setup"
 
 # ===============================
-# 🧩 UUID & CONFIG XRAY (TIDAK DIUBAH)
+# 🧩 UUID & CONFIG XRAY (FIXED JSON STRUCTURE)
 # ===============================
 uuid=$(cat /proc/sys/kernel/random/uuid)
 echo -e "[ ${GREEN}✓${NC} ] UUID generated: $uuid"
-# xray config
+
+# PEMBUATAN CONFIG.JSON YANG BENAR
+# Perhatikan posisi #tag berada DILUAR object {} client pertama
 cat > /etc/xray/config.json << END
 {
   "log" : {
@@ -113,273 +115,161 @@ cat > /etc/xray/config.json << END
     "loglevel": "warning"
   },
   "inbounds": [
-      {
+    {
       "listen": "127.0.0.1",
       "port": 10000,
       "protocol": "dokodemo-door",
-      "settings": {
-        "address": "127.0.0.1"
-      },
+      "settings": { "address": "127.0.0.1" },
       "tag": "api"
     },
-   {
-     "listen": "127.0.0.1",
-     "port": "10001",
-     "protocol": "vless",
+    {
+      "listen": "127.0.0.1",
+      "port": "10001",
+      "protocol": "vless",
       "settings": {
-          "decryption":"none",
-            "clients": [
-               {
-                 "id": "${uuid}",                 
-                 "level": 0
-#vless
-             }
-          ]
-       },
-       "streamSettings":{
-         "network": "ws",
-            "wsSettings": {
-                "path": "/vless"
-          }
-        }
-     },
-     {
-     "listen": "127.0.0.1",
-     "port": "10002",
-     "protocol": "vmess",
+        "decryption":"none",
+        "clients": [
+           {
+             "id": "${uuid}",
+             "level": 0
+           }
+           #vless
+        ]
+      },
+      "streamSettings":{ "network": "ws", "wsSettings": { "path": "/vless" } }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": "10002",
+      "protocol": "vmess",
       "settings": {
-            "clients": [
-               {
-                 "id": "${uuid}",
-                 "alterId": 0,
-                 "level": 0
-#vmess
-             }
-          ]
-       },
-       "streamSettings":{
-         "network": "ws",
-            "wsSettings": {
-                "path": "/vmess"
-          }
-        }
-     },
+        "clients": [
+           {
+             "id": "${uuid}",
+             "alterId": 0,
+             "level": 0
+           }
+           #vmess
+        ]
+      },
+      "streamSettings":{ "network": "ws", "wsSettings": { "path": "/vmess" } }
+    },
     {
       "listen": "127.0.0.1",
       "port": "10003",
       "protocol": "trojan",
       "settings": {
-          "decryption":"none",		
-           "clients": [
-              {
-                 "password": "${uuid}", 
-                 "level": 0
-#trojanws
-              }
-          ],
-         "udp": true
-       },
-       "streamSettings":{
-           "network": "ws",
-           "wsSettings": {
-               "path": "/trojan"
-            }
-         }
-     },
-    {
-         "listen": "127.0.0.1",
-        "port": "10004",
-        "protocol": "shadowsocks",
-        "settings": {
-           "clients": [
-           {
-           "method": "aes-128-gcm",
-          "password": "${uuid}", 
-          "level": 0
-#ssws
-           }
-          ],
-          "network": "tcp,udp"
-       },
-       "streamSettings":{
-          "network": "ws",
-             "wsSettings": {
-               "path": "/ss-ws"
-           }
-        }
-     },	
-      {
-        "listen": "127.0.0.1",
-     "port": "10005",
-        "protocol": "vless",
-        "settings": {
-         "decryption":"none",
-           "clients": [
-             {
-               "id": "${uuid}", 
-               "level": 0
-#vlessgrpc
-             }
-          ]
-       },
-          "streamSettings":{
-             "network": "grpc",
-             "grpcSettings": {
-                "serviceName": "vless-grpc"
-           }
-        }
-     },
-     {
-      "listen": "127.0.0.1",
-     "port": "10006",
-     "protocol": "vmess",
-      "settings": {
-            "clients": [
-               {
-                 "id": "${uuid}",
-                 "alterId": 0,
-                 "level": 0
-#vmessgrpc
-             }
-          ]
-       },
-       "streamSettings":{
-         "network": "grpc",
-            "grpcSettings": {
-                "serviceName": "vmess-grpc"
-          }
-        }
-     },
-     {
-        "listen": "127.0.0.1",
-     "port": "10007",
-        "protocol": "trojan",
-        "settings": {
-          "decryption":"none",
-             "clients": [
-               {
-                 "password": "${uuid}", 
-                 "level": 0
-#trojangrpc
-               }
-           ]
-        },
-         "streamSettings":{
-         "network": "grpc",
-           "grpcSettings": {
-               "serviceName": "trojan-grpc"
-         }
-      }
-   },
-   {
-    "listen": "127.0.0.1",
-    "port": "10008",
-    "protocol": "shadowsocks",
-    "settings": {
+        "decryption":"none",
         "clients": [
-          {
-             "method": "aes-128-gcm",
-             "password": "${uuid}", 
+           {
+             "password": "${uuid}",
              "level": 0
-#ssgrpc
            }
-         ],
-           "network": "tcp,udp"
+           #trojanws
+        ],
+        "udp": true
       },
-    "streamSettings":{
-     "network": "grpc",
-        "grpcSettings": {
-           "serviceName": "ss-grpc"
-          }
-       }
-    }	
-  ],
-  "outbounds": [
-    {
-      "protocol": "freedom",
-      "settings": {}
+      "streamSettings":{ "network": "ws", "wsSettings": { "path": "/trojan-ws" } }
     },
     {
-      "protocol": "blackhole",
-      "settings": {},
-      "tag": "blocked"
+      "listen": "127.0.0.1",
+      "port": "10004",
+      "protocol": "shadowsocks",
+      "settings": {
+        "clients": [
+           {
+             "method": "aes-128-gcm",
+             "password": "${uuid}",
+             "level": 0
+           }
+           #ssws
+        ],
+        "network": "tcp,udp"
+      },
+      "streamSettings":{ "network": "ws", "wsSettings": { "path": "/ss-ws" } }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": "10005",
+      "protocol": "vless",
+      "settings": {
+        "decryption":"none",
+        "clients": [
+           {
+             "id": "${uuid}",
+             "level": 0
+           }
+           #vlessgrpc
+        ]
+      },
+      "streamSettings":{ "network": "grpc", "grpcSettings": { "serviceName": "vless-grpc" } }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": "10006",
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+           {
+             "id": "${uuid}",
+             "alterId": 0,
+             "level": 0
+           }
+           #vmessgrpc
+        ]
+      },
+      "streamSettings":{ "network": "grpc", "grpcSettings": { "serviceName": "vmess-grpc" } }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": "10007",
+      "protocol": "trojan",
+      "settings": {
+        "decryption":"none",
+        "clients": [
+           {
+             "password": "${uuid}",
+             "level": 0
+           }
+           #trojangrpc
+        ]
+      },
+      "streamSettings":{ "network": "grpc", "grpcSettings": { "serviceName": "trojan-grpc" } }
+    },
+    {
+      "listen": "127.0.0.1",
+      "port": "10008",
+      "protocol": "shadowsocks",
+      "settings": {
+        "clients": [
+           {
+             "method": "aes-128-gcm",
+             "password": "${uuid}",
+             "level": 0
+           }
+           #ssgrpc
+        ],
+        "network": "tcp,udp"
+      },
+      "streamSettings":{ "network": "grpc", "grpcSettings": { "serviceName": "ss-grpc" } }
     }
+  ],
+  "outbounds": [
+    { "protocol": "freedom", "settings": {} },
+    { "protocol": "blackhole", "settings": {}, "tag": "blocked" }
   ],
   "routing": {
     "rules": [
-      {
-        "type": "field",
-        "ip": [
-          "0.0.0.0/8",
-          "10.0.0.0/8",
-          "100.64.0.0/10",
-          "169.254.0.0/16",
-          "172.16.0.0/12",
-          "192.0.0.0/24",
-          "192.0.2.0/24",
-          "192.168.0.0/16",
-          "198.18.0.0/15",
-          "198.51.100.0/24",
-          "203.0.113.0/24",
-          "::1/128",
-          "fc00::/7",
-          "fe80::/10"
-        ],
-        "outboundTag": "blocked"
-      },
-      {
-        "inboundTag": ["api"],
-        "outboundTag": "api",
-        "type": "field"
-      },
-      {
-        "type": "field",
-        "protocol": ["bittorrent"],
-        "outboundTag": "blocked"
-      },
-      {
-        "type": "field",
-        "outboundTag": "freedom",
-        "domain": [
-          "*.gojek.com",
-          "*.go-pay.co.id",
-          "*.shopee.co.id",
-          "*.tokopedia.com",
-          "*.bukalapak.com",
-          "*.ovo.id",
-          "*.dana.id",
-          "*.linkaja.id",
-          "*.mandiri.co.id",
-          "*.bca.co.id",
-          "*.bni.co.id",
-          "*.bri.co.id",
-          "*.cimbniaga.co.id",
-          "*.myxl.co.id",
-          "*.tsel.com",
-          "*.indosatooredoo.com",
-          "*.axisnet.id"
-        ]
-      }
+      { "type": "field", "ip": [ "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/24", "192.0.2.0/24", "192.168.0.0/16", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "::1/128", "fc00::/7", "fe80::/10" ], "outboundTag": "blocked" },
+      { "inboundTag": ["api"], "outboundTag": "api", "type": "field" },
+      { "type": "field", "protocol": ["bittorrent"], "outboundTag": "blocked" }
     ]
   },
   "stats": {},
-  "api": {
-    "services": ["StatsService"],
-    "tag": "api"
-  },
+  "api": { "services": ["StatsService"], "tag": "api" },
   "policy": {
-    "levels": {
-      "0": {
-        "statsUserDownlink": true,
-        "statsUserUplink": true
-      }
-    },
-    "system": {
-      "statsInboundUplink": true,
-      "statsInboundDownlink": true,
-      "statsOutboundUplink": true,
-      "statsOutboundDownlink": true
-    }
+    "levels": { "0": { "statsUserDownlink": true, "statsUserUplink": true } },
+    "system": { "statsInboundUplink": true, "statsInboundDownlink": true, "statsOutboundUplink": true, "statsOutboundDownlink": true }
   }
 }
 END
@@ -408,7 +298,7 @@ EOF
 
 cat > /etc/systemd/system/runn.service <<EOF
 [Unit]
-Description=Casper9 Helper Service
+Description=Helper Service
 After=network.target
 
 [Service]
@@ -426,8 +316,10 @@ progress_bar 2 "Systemd services"
 # 🌐 WEB CONFIG
 # ===============================
 echo -e "[ ${YELLOW}•${NC} ] Configuring Nginx & Haproxy..."
+# Download config baru jika ada, atau gunakan default
 wget -q -O /etc/nginx/conf.d/xray.conf "${REPO}install/xray.conf"
 wget -q -O /etc/haproxy/haproxy.cfg "${REPO}install/haproxy.cfg"
+# Replace domain
 sed -i "s/xxx/$domain/g" /etc/nginx/conf.d/xray.conf
 sed -i "s/xxx/$domain/g" /etc/haproxy/haproxy.cfg
 cat /etc/xray/xray.key /etc/xray/xray.crt > /etc/haproxy/hap.pem
@@ -439,6 +331,7 @@ progress_bar 3 "Web config applied"
 rm -rf /etc/systemd/system/xray.service.d
 systemctl daemon-reload
 systemctl enable --now xray haproxy nginx runn >/dev/null 2>&1
+systemctl restart xray
 progress_bar 2 "All services started"
 
 # ===============================

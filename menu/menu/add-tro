@@ -1,0 +1,315 @@
+#!/bin/bash
+# =========================================
+# Quick Setup | Script Me | TROJAN FIX v2
+# =========================================
+clear
+# Warna Standard
+red() { echo -e "\\033[32;1m${*}\\033[0m"; }
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+
+# =========================================
+# 1. Validasi Izin Lokal (Self-Hosted Mode)
+# =========================================
+checking_sc() {
+    # Buat file izin otomatis jika tidak ada
+    if [[ ! -f "/usr/bin/user" ]] || [[ ! -f "/usr/bin/e" ]]; then
+        echo "admin" > /usr/bin/user
+        echo "2099-12-31" > /usr/bin/e
+    fi
+    # Pastikan isi file tidak kosong
+    if [[ -z $(cat /usr/bin/user) ]]; then
+        echo "admin" > /usr/bin/user
+    fi
+}
+checking_sc
+
+# =========================================
+# 2. Variabel & Konfigurasi
+# =========================================
+MYIP=$(curl -sS ipv4.icanhazip.com)
+ISP=$(cat /etc/xray/isp 2>/dev/null)
+CITY=$(cat /etc/xray/city 2>/dev/null)
+domain=$(cat /etc/xray/domain 2>/dev/null)
+nama=$(cat /etc/xray/username 2>/dev/null)
+
+# Telegram Bot Config
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3 2>/dev/null)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2 2>/dev/null)
+export TIME="10"
+export URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+# =========================================
+# 3. Fungsi Tampilan & Helper
+# =========================================
+function baris_panjang() {
+  echo -e "\033[5;36m ◇━━━━━━━━━━━━━━━━━◇ \033[0m"
+}
+
+function Xwan_Banner() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     $nama       \033[0m"
+    baris_panjang
+}
+
+function Sc_Credit(){
+    sleep 1
+    baris_panjang
+    echo -e "\033[2;35m      Terimakasih Telah Menggunakan \033[0m"
+    echo -e "\033[2;35m             Script Credit \033[0m"
+    echo -e "\033[2;35m           $nama  \033[0m"
+    baris_panjang
+    # Restart service untuk apply perubahan
+    systemctl restart xray > /dev/null 2>&1
+    exit 0
+}
+
+loading() {
+  local pid=$1
+  local delay=0.1
+  local spin='-\|/'
+  while ps -p $pid > /dev/null; do
+    local temp=${spin#?}
+    printf "[%c] " "$spin"
+    local spin=$temp${spin%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  printf "    \b\b\b\b"
+}
+
+# =========================================
+# 4. Input Data User
+# =========================================
+until [[ $user =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
+  Xwan_Banner
+  echo -e "\033[95;1m      XRAY TROJAN      \033[0m"
+  baris_panjang
+  echo -e " \033[37mJust input a number for-\033[0m"
+  echo -e " \033[32mQuota Limit\033[0m"
+  echo -e " \033[32mLimit IP\033[0m"
+  echo -e " \033[37mFormat GB\033[0m"
+  echo ""
+  echo -e " \033[33m0\033[0m \033[37mfor Unlimited\033[0m"
+  echo -e " \033[33m0\033[0m \033[37Mfor No Limit\033[0m"
+  echo ""
+  baris_panjang
+  echo ""
+  read -rp " Username         : " -e user
+
+  if grep -i -w -q "$user" /etc/xray/config.json; then
+    clear
+    Xwan_Banner
+    baris_panjang
+    echo ""
+    echo -e "\033[91m Name Salah: Username sudah terdaftar, silakan gunakan nama lain. \033[0m"
+    echo ""
+    baris_panjang
+    read -n 1 -s -r -p "Press any key to try again..."
+  else
+    CLIENT_EXISTS=0
+    break
+  fi
+done
+
+uuid=$(cat /proc/sys/kernel/random/uuid)
+echo
+read -p " Limit User (GB)  : " Quota
+echo
+read -p " Limit User (IP)  : " iplimit
+echo
+read -p " Expired (days)   : " masaaktif
+echo
+echo -e "\033[2;32mCreate Account.....${NC}"
+sleep 2 & loading $!
+
+# =========================================
+# 5. Proses Pembuatan Config (INJEKSI BARU)
+# =========================================
+tgl=$(date -d "$masaaktif days" +"%d")
+bln=$(date -d "$masaaktif days" +"%b")
+thn=$(date -d "$masaaktif days" +"%Y")
+expe="$tgl $bln, $thn"
+tgl2=$(date +"%d")
+bln2=$(date +"%b")
+thn2=$(date +"%Y")
+tnggl="$tgl2 $bln2, $thn2"
+exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
+
+# --- [FIX] INJECT CONFIG XRAY DENGAN PREPEND COMMA ---
+# Injeksi JSON Trojan WS
+sed -i '/#trojanws$/i ,{"password": "'""$uuid""'","email": "'""$user""'"}' /etc/xray/config.json
+
+# Injeksi JSON Trojan GRPC
+sed -i '/#trojangrpc$/i ,{"password": "'""$uuid""'","email": "'""$user""'"}' /etc/xray/config.json
+# -----------------------------------------------------
+
+# Generate Links
+trojanlink="trojan://${uuid}@${domain}:443?path=%2Ftrojan-ws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
+trojanlink2="trojan://${uuid}@${domain}:80?path=%2Ftrojan-ws&security=none&host=${domain}&type=ws#${user}"
+trojanlink1="trojan://${uuid}@${domain}:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&sni=${domain}#${user}"
+
+# Buat file untuk OpenClash/Web
+cat >/var/www/html/trojan-$user.txt <<-END
+======================
+$nama
+======================
+# Format Trojan GO/WS
+- name: Trojan-$user-GO/WS
+  server: ${domain}
+  port: 443
+  type: trojan
+  password: ${uuid}
+  network: ws
+  sni: ${domain}
+  skip-cert-verify: true
+  udp: true
+  ws-opts:
+    path: /trojan-ws
+    headers:
+        Host: ${domain}
+
+# Format Trojan gRPC
+- name: Trojan-$user-gRPC
+  type: trojan
+  server: ${domain}
+  port: 443
+  password: ${uuid}
+  udp: true
+  sni: ${domain}
+  skip-cert-verify: true
+  network: grpc
+  grpc-opts:
+    grpc-service-name: trojan-grpc
+  
+FORMAT LINK
+======================
+Link Akun Trojan 
+======================
+Link WS          : 
+${trojanlink}
+======================
+Link NTLS        : 
+${trojanlink2}
+======================
+Link GRPC        : 
+${trojanlink1}
+======================
+Days in  : $masaaktif Day
+Expired  : $expe
+======================
+END
+
+# Folder & Database Checks
+if [ ! -e /etc/trojan ]; then
+  mkdir -p /etc/trojan
+fi
+
+if [[ $iplimit -gt 0 ]]; then
+    mkdir -p /etc/kyt/limit/trojan/ip
+    echo -e "$iplimit" > /etc/kyt/limit/trojan/ip/$user
+fi
+
+if [ -z ${Quota} ]; then
+  Quota="0"
+fi
+
+c=$(echo "${Quota}" | sed 's/[^0-9]*//g')
+d=$((${c} * 1024 * 1024 * 1024))
+
+if [[ ${c} != "0" ]]; then
+  echo "${d}" >/etc/trojan/${user}
+fi
+
+DATADB=$(cat /etc/trojan/.trojan.db | grep "^###" | grep -w "${user}" | awk '{print $2}')
+if [[ "${DATADB}" != '' ]]; then
+  sed -i "/\b${user}\b/d" /etc/trojan/.trojan.db
+  echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >>/etc/trojan/.trojan.db
+else
+  echo "### ${user} ${exp} ${uuid} ${Quota} ${iplimit}" >>/etc/trojan/.trojan.db
+fi
+
+clear
+
+# =========================================
+# 6. Notifikasi Telegram & Output
+# =========================================
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>      XRAY/TROJAN</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+<code>Remarks   : ${user}
+Domain    : ${domain}
+Limit Quota : ${Quota} GB
+Port TLS  : 400-900
+Port NTLS : 80, 8080, 8081-9999
+id        : ${uuid}
+alterId   : 0
+Security  : auto
+network   : ws or grpc
+Path      : /Multi-Path
+Dynamic   : https://bugmu.com/path
+Name      : trojan-grpc</code>
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Format OpenClash : https://${domain}:81/trojan-$user.txt
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+Aktif Selama   : $masaaktif Hari
+Dibuat Pada    : $tnggl
+Berakhir Pada  : $expe
+<code>◇━━━━━━━━━━━━━━━━━◇</code>
+"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+TEXT="<code>◇━━━━━━━━━━━━━━━━━◇
+*_PEMBELIAN BERHASIL_*
+◇━━━━━━━━━━━━━━━━━◇
+-» PRODUK : TROJAN
+-» REGION : $CITY
+-» REQ CONFIG : 
+-» REQ NAMA : $user
+-» DEVICE : $iplimit IP
+-» HARGA : 
+-» AKTIF : $masaaktif HARI
+-» TGL EXP : $expe
+◇━━━━━━━━━━━━━━━━━◇
+$nama </code>"
+curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" $URL >/dev/null
+
+clear
+function Details_Account() {
+    echo -e "\033[37m TROJAN  \033[0m"
+    echo -e ""
+    echo -e "\033[37m Remarks      : ${user} \033[0m" 
+    echo -e "\033[37m Host/IP      : ${domain} \033[0m"
+    echo -e "\033[37m User Quota   : ${Quota} GB \033[0m"
+    echo -e "\033[37m User Ip      : ${iplimit} IP \033[0m"
+    echo -e "\033[37m Port NTLS    : 443-900 \033[0m" 
+    echo -e "\033[37m port WS      : 80,8880,8080 \033[0m"
+    echo -e "\033[37m Key          : ${uuid} \033[0m"
+    echo -e "\033[37m ISP          : $ISP \033[0m"
+    echo -e "\033[37m Path         : /trojan-ws \033[0m" 
+    echo -e "\033[37m ServiceName  : trojan-grpc \033[0m"
+    baris_panjang
+}
+
+function Link_Json() {
+    echo -e "\033[37m Link TLS     : ${trojanlink} \033[0m" 
+    baris_panjang
+    echo -e "\033[37m Link NTLS    : ${trojanlink2} \033[0m" 
+    baris_panjang 
+    echo -e "\033[37m Link GRPC    : ${trojanlink1} \033[0m" 
+    baris_panjang
+    echo -e "\033[37m OpenClash    : https://${domain}:81/trojan-$user.txt \033[0m" 
+}
+
+function Details_Expiry() {
+    baris_panjang
+    echo -e " \033[33mDays in     : $masaaktif Day \033[0m "
+    echo -e " \033[33mExpiry in   : $expe \033[0m "
+}
+
+Xwan_Banner
+Details_Account
+Link_Json
+Details_Expiry
+Sc_Credit

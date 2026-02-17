@@ -1,0 +1,136 @@
+#!/bin/bash
+# ==========================================
+# Warna Terminal
+RED='\033[0;31m'
+NC='\033[0m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+BLUE='\033[0;34m'
+
+# WEBSITE Bot Info
+CHATID=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 3)
+KEY=$(grep -E "^#bot# " "/etc/bot/.bot.db" | cut -d ' ' -f 2)
+export TIME="10"
+export URL="https://api.telegram.org/bot$KEY/sendMessage"
+
+# Lokasi Virtualenv
+VENV_DIR="/opt/gdown-venv"
+
+# Fungsi notifikasi WEBSITE
+function notif_restore() {
+    sleep 2
+    TEXT="
+<code>◇━━━━━━━━━━━━━━◇</code>
+<b>  ⚠️ RESTORE NOTIF⚠️</b>
+<b>     Detail Restore VPS</b>
+<code>◇━━━━━━━━━━━━━━◇</code>
+<code>Restore VPS Done</code>
+<code>◇━━━━━━━━━━━━━━◇</code>
+"
+    curl -s --max-time $TIME \
+      -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEXT&parse_mode=html" \
+      $URL >/dev/null
+}
+
+clear
+echo -e "${CYAN}🔗 Masukkan Link Google Drive untuk file backup:${NC}"
+read -rp "Link File: " url
+
+# Ekstrak ID dari link
+if [[ $url =~ id=([a-zA-Z0-9_-]+) ]]; then
+    FILE_ID="${BASH_REMATCH[1]}"
+elif [[ $url =~ /file/d/([a-zA-Z0-9_-]+) ]]; then
+    FILE_ID="${BASH_REMATCH[1]}"
+else
+    echo -e "${RED}❌ Gagal mengambil File ID dari link. Periksa kembali formatnya.${NC}"
+    exit 1
+fi
+
+# Pastikan virtualenv sudah dibuat
+if [ ! -d "$VENV_DIR" ]; then
+    echo -e "${BLUE}🛠️ Membuat virtual environment di $VENV_DIR ...${NC}"
+    apt update -y >/dev/null 2>&1
+    apt install python3-venv -y >/dev/null 2>&1
+    python3 -m venv "$VENV_DIR"
+fi
+
+# Aktifkan virtualenv
+source "$VENV_DIR/bin/activate"
+
+# Install gdown di dalam venv jika belum tersedia
+if ! pip list | grep -q gdown; then
+    echo -e "${BLUE}📦 Menginstal gdown dalam virtualenv...${NC}"
+    pip install --upgrade pip >/dev/null 2>&1
+    pip install gdown >/dev/null 2>&1
+fi
+
+# Download file dengan gdown dari virtualenv
+echo -e "${BLUE}⬇️ Mengunduh file backup...${NC}"
+gdown --id "$FILE_ID" -O backup.zip >/dev/null 2>&1
+
+# Nonaktifkan virtualenv
+deactivate
+
+# Validasi file ZIP
+if ! file backup.zip | grep -q 'Zip archive data'; then
+    echo -e "${RED}❌ File yang diunduh bukan ZIP valid. Restore dibatalkan.${NC}"
+    rm -f backup.zip
+    exit 1
+fi
+
+# Ekstrak file ZIP
+echo -e "${BLUE}📂 Mengekstrak file backup.zip...${NC}"
+unzip -oq backup.zip
+rm -f backup.zip
+
+# Masuk ke folder backup (deteksi otomatis)
+if [ -d "backup" ]; then
+    cd backup
+elif [ -d "/root/backup" ]; then
+    cd /root/backup
+else
+    echo -e "${RED}❌ Folder backup tidak ditemukan setelah extract.${NC}"
+    exit 1
+fi
+
+# Mulai proses restore
+echo -e "${BLUE}🔧 Memulihkan file sistem dan konfigurasi...${NC}"
+
+# File penting sistem
+cp passwd /etc/
+cp group /etc/
+cp shadow /etc/
+cp gshadow /etc/
+cp crontab /etc/
+
+# Database bot & VPN
+cp .bot.db /etc/bot/ 2>/dev/null
+cp .ssh.db /etc/ssh/ 2>/dev/null
+cp .vmess.db /etc/vmess/ 2>/dev/null
+cp .vless.db /etc/vless/ 2>/dev/null
+cp .trojan.db /etc/trojan/ 2>/dev/null
+
+# Folder utama
+cp -r kyt /var/lib/ 2>/dev/null
+cp -r xray /etc/ 2>/dev/null
+cp -r html /var/www/ 2>/dev/null
+cp -r limit /etc/ 2>/dev/null
+cp -r kyt /etc/ 2>/dev/null
+cp -r vmess /etc/ 2>/dev/null
+cp -r trojan /etc/ 2>/dev/null
+cp -r vless /etc/ 2>/dev/null
+cp -r slowdns /etc/ 2>/dev/null
+
+# Restore file khusus jika ada
+if [ -d "/root/BotVPN2" ] && [ -f "sellvpn.db" ]; then
+    cp sellvpn.db /root/BotVPN2/
+    echo -e "${GREEN}→ Database sellvpn.db dipulihkan.${NC}"
+fi
+
+# Bersihkan dan restart
+cd /root
+notif_restore
+rm -rf /root/backup
+systemctl restart xray ws
+
+echo -e "${GREEN}✅ Restore selesai. Service Xray berhasil direstart.${NC}"

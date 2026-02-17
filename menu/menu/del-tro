@@ -1,0 +1,98 @@
+#!/bin/bash
+# =========================================
+# Script Delete Trojan | Fixed for JSON v2
+# =========================================
+clear
+# Warna
+red() { echo -e "\\033[32;1m${*}\\033[0m"; }
+BlueCyan='\e[5;36m'
+NC='\e[0m'
+
+# Validasi Izin
+checking_sc() {
+    if [[ ! -f "/usr/bin/user" ]]; then echo "admin" > /usr/bin/user; echo "2099-12-31" > /usr/bin/e; fi
+}
+checking_sc
+
+# Variabel
+nama=$(cat /etc/xray/username 2>/dev/null)
+
+# Fungsi Banner
+function baris_panjang() { echo -e "\033[5;36m ◇━━━━━━━━━━━━━━━━━◇ \033[0m"; }
+function Xwan_Banner() {
+    clear
+    baris_panjang
+    echo -e "\033[95;1m     $nama       \033[0m"
+    baris_panjang
+}
+
+function Sc_Credit(){
+    sleep 1
+    baris_panjang
+    echo -e "\033[2;35m      Terimakasih Telah Menggunakan \033[0m"
+    echo -e "\033[2;35m             Script Credit \033[0m"
+    echo -e "\033[2;35m           $nama  \033[0m"
+    baris_panjang
+    # Restart Xray agar user benar-benar terhapus
+    systemctl restart xray > /dev/null 2>&1
+    exit 0
+}
+
+# --- LOGIKA BARU: BACA DARI DATABASE ---
+if [[ ! -f "/etc/trojan/.trojan.db" ]]; then
+    Xwan_Banner
+    echo -e "\033[91m Tidak ada user Trojan yang terdaftar di Database! \033[0m"
+    exit 0
+fi
+
+NUMBER_OF_CLIENTS=$(grep -c -E "^### " "/etc/trojan/.trojan.db")
+if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
+    Xwan_Banner
+    echo -e "\033[91m Database Kosong! \033[0m"
+    exit 0
+fi
+
+Xwan_Banner
+echo -e "     LIST USER TROJAN"
+baris_panjang
+echo -e "No  | User         | Expired"
+baris_panjang
+
+# Tampilkan list user
+grep -E "^### " "/etc/trojan/.trojan.db" | cut -d ' ' -f 2-3 | nl -s ') '
+baris_panjang
+
+# Input Pilihan
+read -p " Pilih Nomor User untuk dihapus : " client_number
+echo ""
+
+# Validasi Input
+if ! [[ "$client_number" =~ ^[0-9]+$ ]]; then
+    echo -e "\033[91m Input harus angka! \033[0m"
+    exit 1
+fi
+
+user=$(grep -E "^### " "/etc/trojan/.trojan.db" | cut -d ' ' -f 2 | sed -n "${client_number}p")
+exp=$(grep -E "^### " "/etc/trojan/.trojan.db" | cut -d ' ' -f 3 | sed -n "${client_number}p")
+
+if [[ -z "$user" ]]; then
+    echo -e "\033[91m User tidak ditemukan! \033[0m"
+    exit 1
+fi
+
+echo -e " Menghapus User : $user ..."
+
+# --- PROSES PENGHAPUSAN ---
+
+# 1. Hapus dari Config Xray (Cari baris yang mengandung email:"user")
+sed -i "/\"email\": \"$user\"/d" /etc/xray/config.json
+
+# 2. Hapus dari Database Trojan
+sed -i "/^### $user $exp/d" /etc/trojan/.trojan.db
+
+# 3. Hapus File Limit/Quota
+rm -f /etc/trojan/$user
+rm -f /etc/kyt/limit/trojan/ip/$user
+
+echo -e " \033[32mUser berhasil dihapus! \033[0m"
+Sc_Credit

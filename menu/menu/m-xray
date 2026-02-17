@@ -1,0 +1,146 @@
+#!/bin/bash
+
+# WARNA
+BlueCyan='\e[5;36m'
+WhiteBe='\e[5;37m'
+GreenBe='\e[5;32m'
+Xark='\e[0m'
+r="\033[1;91m"
+ungu='\033[0;35m'
+yellow='\e[33m'
+BG_BLU="\033[44;1m"
+GREN="\033[92m"
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+
+# Efek tambahan
+BLINK_GREEN="\033[5;32m"
+BLINK_RED="\033[5;31m"
+
+# Background
+BG_BLU="\033[44;1m" # BG BIRU
+clear
+
+# GARIS PEMBATAS
+function baris_panjang() {
+  echo -e "${PURPLE} ———————————————————————————————————————${Xark}"
+}
+function xwan() {
+  echo -e     " ${BG_BLU}           XRAY/VMESS/VLESS            ${Xark} "
+}
+xVMESS() {
+  echo -e " ${BG_BLU}               XRAY VMESS              ${Xark} "
+}
+
+xVLESS() {
+  echo -e " ${BG_BLU}               XRAY VLESS              ${Xark} "
+}
+
+# FUNGSI MENU XRAY VMESS
+Create_Account()               { add-vme; }
+Create_Trial()                 { trial-vme; }
+Delete_Account()               { del-vme; }
+List_Member()                  { member-vme; }
+Renew_Account()                { renew-vme; }
+Check_Account()                { cek-vme; }
+Changes_Limit_Quota()          { change-vmess-qouta; }
+Change_Ip_Vmess()              { ganti-ip-vmess; }
+Changes_Limit_Xray()           { change-limit-xray; }
+Detail_Config_Vmess()          { check-vme; }
+Lock_Account_Vmess()           { lock-vm; }
+Unlock_Account_Vmess()         { unlock-vm; }
+Recovery_Vmess()               { recover-vm; }
+
+# FUNGSI MENU XRAY VLESS
+Create_Account_Vless()         { add-vle; }
+Create_Trial_Vless()           { trial-vle; }
+Delete_Account_Vless()         { del-vle; }
+List_Member_Vless()            { member-vle; }
+Renew_Account_Vless()          { renew-vle; }
+Check_Account_Vless()          { cek-vle; }
+Changes_Limit_Quota_Vless()    { change-vless-qouta; }
+Change_Ip_Vless()              { ganti-ip-vless; }
+Detail_Config_Vless()          { check-vle; }
+Lock_Account_Vless()           { lock-vl; }
+Unlock_Account_Vless()         { unlock-vl; }
+Recovery_Vless()               { recover-vl; }
+
+# BANNER
+Banner() {
+  baris_panjang
+  xwan
+  baris_panjang
+}
+
+# MENU UTAMA
+Menu_Features() {
+  echo -e "  1.)  Check Users Login Vmess"
+  echo -e "  2.)  Check Users Login Vless"
+  echo -e "  3.)  List Member"
+  baris_panjang
+  xVMESS
+  baris_panjang
+  echo -e "  4.)  Create Account Vmess"
+  echo -e "  5.)  Trial Account Vmess"
+  echo -e "  6.)  Delete Account Vmess"
+  echo -e "  7.)  Renew Account Vmess"
+  echo -e "  8.)  Check Config Account"
+  echo -e "  9.)  Recovery Account"
+  echo -e " 10.)  Edit Limit IP Account"
+  echo -e " 11.)  Edit Limit Bandwidth Account"
+  echo -e " 12.)  Lock Account"
+  echo -e " 13.)  Unlock Account"
+  baris_panjang
+  xVLESS
+  baris_panjang
+  echo -e " 14.)  Create Account Vless"
+  echo -e " 15.)  Trial Account Vless"
+  echo -e " 16.)  Delete Account Vless"
+  echo -e " 17.)  Renew Account Vless"
+  echo -e " 18.)  Check Config Account"
+  echo -e " 19.)  Recovery Account"
+  echo -e " 20.)  Edit Limit IP Account"
+  echo -e " 21.)  Edit Limit Bandwidth Account"
+  echo -e " 22.)  Lock Account"
+  echo -e " 23.)  Unlock Account"
+  baris_panjang
+  echo -e " 24.)  Back to Menu"
+  echo -e "   x.)  Exit"
+  baris_panjang
+}
+
+# TAMPILKAN MENU
+Banner
+Menu_Features
+
+# INPUT PILIHAN
+read -p "Select From Options [1-24 or x]: " Ltt
+
+case $Ltt in
+  1)  clear; Check_Account ;;
+  2)  clear; cek-loginvl ;;
+  3)  clear; List_Member ;;
+  4)  clear; Create_Account ;;
+  5)  clear; Create_Trial ;;
+  6)  clear; Delete_Account ;;
+  7)  clear; Renew_Account ;;
+  8)  clear; Detail_Config_Vmess ;;
+  9)  clear; Recovery_Vmess ;;
+ 10)  clear; Change_Ip_Vmess ;;
+ 11)  clear; Changes_Limit_Quota ;;
+ 12)  clear; Lock_Account_Vmess ;;
+ 13)  clear; Unlock_Account_Vmess ;;
+ 14)  clear; Create_Account_Vless ;;
+ 15)  clear; Create_Trial_Vless ;;
+ 16)  clear; Delete_Account_Vless ;;
+ 17)  clear; Renew_Account_Vless ;;
+ 18)  clear; Detail_Config_Vless ;;
+ 19)  clear; Recovery_Vless ;;
+ 20)  clear; Change_Ip_Vless ;;
+ 21)  clear; Changes_Limit_Quota_Vless ;;
+ 22)  clear; Lock_Account_Vless ;;
+ 23)  clear; Unlock_Account_Vless ;;
+ 24)  clear; menu ;;
+  x|X) exit ;;
+  *)  clear; m-xray ;;
+esac
