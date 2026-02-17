@@ -149,22 +149,15 @@ clear
 clear
 cd
 echo ""
-    echo -e "$BBlue                     SETUP DOMAIN VPS     $NC"
-    echo -e "$BYellow----------------------------------------------------------$NC"
-    echo -e "$BGreen 1. Use Domain Random / Gunakan Domain Sendiri $NC"
-    echo -e "$BGreen 2. Choose Your Own Domain / Gunakan Domain Random $NC"
-    echo -e "$BYellow----------------------------------------------------------$NC"
-until [[ $domain =~ ^[132]+$ ]]; do 
-read -p "   Please select numbers 1  atau 2 : " domain
-done
-if [[ $domain == "1" ]]; then
-clear
-echo -e  "${green}┌──────────────────────────────────────────┐${NC}"
-echo -e  "${green}│              \033[1;37mTERIMA KASIH                ${green}│${NC}"
-echo -e  "${green}│         \033[1;37mSUDAH MENGGUNAKAN SCRIPT         ${green}│${NC}"
-echo -e  "${green}│                \033[1;37mDARI SAYA                 ${green}│${NC}"
-echo -e  "${green}└──────────────────────────────────────────┘${NC}"
-echo " "
+echo -e "$BBlue                     SETUP DOMAIN VPS     $NC"
+echo -e "$BYellow----------------------------------------------------------$NC"
+echo -e "$BGreen MODE AUTO : INPUT DOMAIN SENDIRI $NC"
+echo -e "$BYellow----------------------------------------------------------$NC"
+
+# AUTO pilih mode 1 (domain manual)
+domain="1"
+
+# langsung minta domain
 until [[ $dnss =~ ^[a-zA-Z0-9_.-]+$ ]]; do 
 read -rp "Masukan domain kamu Disini : " -e dnss
 done
@@ -186,8 +179,8 @@ echo "$dnss" > /etc/v2ray/scdomain
 echo "$dnss" > /etc/xray/domain
 echo "$dnss" > /etc/v2ray/domain
 echo "IP=$dnss" > /var/lib/ipvps.conf
-echo ""
 clear
+
 fi
 if [[ $domain == "2" ]]; then
 clear

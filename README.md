@@ -110,8 +110,10 @@ chmod +x reset-user.sh
 
 ## 🔄 STEP 5 — Reboot VPS (Disarankan)
 
-````bash
-sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot```
+```bash
+sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
+```
+
 ---
 
 ## ✅ Instalasi Selesai
@@ -146,7 +148,7 @@ Gunakan screen:
 
 ```bash
 screen -r
-````
+```
 
 ---
 
