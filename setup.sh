@@ -66,7 +66,6 @@ echo -e "${NC}"
 sleep 0.4
 # ===== STATUS =====
 echo -e "${cyan}System is ready to use.${NC}"
-echo -e "${yellow}License activation required for full features.${NC}"
 sleep 0.4
 line
 # ===== LINK =====
@@ -152,17 +151,17 @@ echo ""
     echo -e "$BBlue                     SETUP DOMAIN VPS     $NC"
     echo -e "$BYellow----------------------------------------------------------$NC"
     echo -e "$BGreen 1. Use Domain Random / Gunakan Domain Sendiri $NC"
-    echo -e "$BGreen 2. Choose Your Own Domain / Gunakan Domain Random $NC"
+    echo -e "$BGreen 2. Jangan pilih aku, Pilih 1 aja ya! $NC"
     echo -e "$BYellow----------------------------------------------------------$NC"
 until [[ $domain =~ ^[132]+$ ]]; do 
-read -p "   Please select numbers 1  atau 2 : " domain
+read -p "   Please select numbers 1 : " domain
 done
 if [[ $domain == "1" ]]; then
 clear
 echo -e  "${green}┌──────────────────────────────────────────┐${NC}"
-echo -e  "${green}│              \033[1;37mTERIMA KASIH                ${green}│${NC}"
-echo -e  "${green}│         \033[1;37mSUDAH MENGGUNAKAN SCRIPT         ${green}│${NC}"
-echo -e  "${green}│                \033[1;37mDARI SAYA                 ${green}│${NC}"
+echo -e  "${green}│        \033[1;37mPASTIKAN DOMAIN SUDAH POINTING     ${green}│${NC}"
+echo -e  "${green}│        \033[1;37mKE CLOUDFLARE (DNS ACTIVE)         ${green}│${NC}"
+echo -e  "${green}│        \033[1;37mAGAR INSTALL BERJALAN NORMAL       ${green}│${NC}"
 echo -e  "${green}└──────────────────────────────────────────┘${NC}"
 echo " "
 until [[ $dnss =~ ^[a-zA-Z0-9_.-]+$ ]]; do 
