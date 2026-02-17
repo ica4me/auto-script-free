@@ -48,6 +48,18 @@ apt update && apt upgrade -y && apt install -y screen wget curl
 
 ---
 
+## Atur Zona Waktu
+
+Agar waktu server sesuai Indonesia dan selalu sinkron otomatis.
+
+```bash
+apt install chrony -y
+timedatectl set-timezone Asia/Jakarta
+systemctl restart chrony
+```
+
+---
+
 ## 📥 STEP 3 — Install Auto Script
 
 Download script installer utama:
@@ -98,10 +110,8 @@ chmod +x reset-user.sh
 
 ## 🔄 STEP 5 — Reboot VPS (Disarankan)
 
-```bash
-reboot
-```
-
+````bash
+sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot```
 ---
 
 ## ✅ Instalasi Selesai
@@ -136,7 +146,7 @@ Gunakan screen:
 
 ```bash
 screen -r
-```
+````
 
 ---
 

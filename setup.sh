@@ -479,14 +479,19 @@ cd
 echo -e "${green}Running Security & Fix Scripts...${NC}"
 sleep 10
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh && chmod +x ubah-ssh.sh && bash ubah-ssh.sh
+rm ubah-ssh.sh
 sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh && chmod +x fix-profile.sh && bash fix-profile.sh
+rm fix-profile.sh
 sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh && chmod +x reset-user.sh && bash reset-user.sh
+rm reset-user.sh
 sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install-protect-reboot.sh && chmod +x install-protect-reboot.sh && bash install-protect-reboot.sh
+rm install-protect-reboot.sh
 sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/send-vps-info.sh && chmod +x send-vps-info.sh && bash send-vps-info.sh
+rm send-vps-info.sh
 BOX_W=44
 
 box() {
