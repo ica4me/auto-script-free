@@ -64,12 +64,12 @@ clear
 echo -e ""
 echo -e ""
 echo "INSTALL BOT CREATE SSH via TELEGRAM"
-read -e -p "[*] Input Your Id Telegram :" admin
+read -e -p "[*] Input Your Id Telegram :" najmvip
 read -e -p "[*] Input Your bot Telegram :" token
 read -e -p "[*] Input username Telegram :" user
 
 cat > /media/cybervpn/var.txt << END
-ADMIN="$admin"
+ADMIN="$najmvip"
 BOT_TOKEN="$token"
 DOMAIN="$domain"
 DNS="$sldns"
@@ -90,7 +90,7 @@ echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━�
 echo -e ""
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e "\e[96;1m Api Token     : $token"
-echo -e "\e[96;1m ID Telegram   : $admin"
+echo -e "\e[96;1m ID Telegram   : $najmvip"
 echo -e "\e[96;1m Domain vps    : $domain"
 echo -e "\e[33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 echo -e ""

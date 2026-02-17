@@ -77,7 +77,7 @@ echo -e "${grenbo}[*] Buat Bot dan Token : @BotFather${NC}"
 echo -e "${grenbo}[*] Cek ID Telegram : @MissRose_bot, perintah /info${NC}"
 echo -e "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 read -e -p "[*] Masukkan Bot Token Anda : " bottoken
-read -e -p "[*] Masukkan ID Telegram Anda : " admin
+read -e -p "[*] Masukkan ID Telegram Anda : " najmvip
 
 # === Simpan Konfigurasi (Environment Variables) ===
 mkdir -p /etc/bot
@@ -85,14 +85,14 @@ mkdir -p /usr/bin/kyt
 
 cat <<EOF > /usr/bin/kyt/var.txt
 BOT_TOKEN="$bottoken"
-ADMIN="$admin"
+ADMIN="$najmvip"
 DOMAIN="$domain"
 PUB="$PUB"
 HOST="$NS"
 EOF
 
 # Database legacy (cadangan)
-echo "#bot# $bottoken $admin" > /etc/bot/.bot.db
+echo "#bot# $bottoken $najmvip" > /etc/bot/.bot.db
 
 # === Buat Service Systemd ===
 cat >/etc/systemd/system/kyt.service <<EOF
@@ -126,7 +126,7 @@ clear
 echo -e "\e[92mInstalasi Bot Selesai!\e[0m"
 echo "==============================="
 echo "Token Bot     : $bottoken"
-echo "Admin ID      : $admin"
+echo "Admin ID      : $najmvip"
 echo "Domain        : $domain"
 echo "==============================="
 echo "Silakan cek bot telegram Anda dan ketik /menu"

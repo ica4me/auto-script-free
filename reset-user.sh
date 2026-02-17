@@ -1,139 +1,161 @@
 #!/bin/bash
 
-# Pastikan dijalankan sebagai root
+# =========================================
+# SAFE USER RESET + OPTIONAL LOCKDOWN
+# =========================================
+
+set -e
+
 if [ "$(id -u)" -ne 0 ]; then
-    echo "❌ Script harus dijalankan sebagai root!"
+    echo "Run as root!"
     exit 1
 fi
 
-echo "========================================================"
-echo "   RESET USER & LOCKDOWN SYSTEM (SUPER AGRESID)"
-echo "========================================================"
+echo "======================================"
+echo " SAFE USER RESET SYSTEM"
+echo "======================================"
 
-# DAFTAR FILE SISTEM VITAL
-SYS_FILES=("/etc/passwd" "/etc/shadow" "/etc/group" "/etc/gshadow" "/etc/sudoers")
-LOCK_TOOL="/usr/bin/edit-user-config"
+# ===============================
+# CONFIG SAFE PATH (JANGAN DIKUNCI)
+# ===============================
+SAFE_DIRS=(
+"/etc/ssh"
+"/etc/kyt"
+"/etc/xray"
+"/home"
+"/root"
+)
 
-# 1. JEBOL KUNCI LAMA (FORCE UNLOCK)
-echo "[+] Menjebol kunci sistem (Unlock Attributes)..."
-for FILE in "${SYS_FILES[@]}"; do
-    if [ -f "$FILE" ]; then
-        # Hapus atribut i (immutable), a (append), u (undeletable), e (extent)
-        chattr -i -a -u -e "$FILE" >/dev/null 2>&1
-    fi
+SYS_FILES=(
+"/etc/passwd"
+"/etc/shadow"
+"/etc/group"
+"/etc/gshadow"
+"/etc/sudoers"
+)
+
+LOCK_TOOL="/usr/local/sbin/edit-user-config"
+
+# ===============================
+# FUNCTION UNLOCK SYSTEM
+# ===============================
+unlock_system() {
+    echo "[+] Unlock system files..."
+    for f in "${SYS_FILES[@]}"; do
+        chattr -i "$f" 2>/dev/null || true
+    done
+}
+
+# ===============================
+# FUNCTION LOCK SYSTEM (SAFE)
+# ===============================
+lock_system() {
+    echo "[+] Locking system files (SAFE MODE)..."
+    for f in "${SYS_FILES[@]}"; do
+        chattr +i "$f"
+    done
+}
+
+# ===============================
+# STEP 1 UNLOCK FIRST
+# ===============================
+unlock_system
+
+# ===============================
+# STEP 2 DELETE OLD NORMAL USERS
+# ===============================
+echo "[+] Cleaning old users..."
+
+awk -F: '$3>=1000 && $1!="nobody" && $1!="xccvme"' /etc/passwd | cut -d: -f1 | while read u; do
+    echo "Remove $u"
+    pkill -9 -u "$u" 2>/dev/null || true
+    userdel -f -r "$u" 2>/dev/null || true
 done
 
-# 2. HAPUS SEMUA USER NORMAL (UID >= 1000) KECUALI ROOT
-echo "[+] Membersihkan user lama secara paksa..."
-# Ambil daftar user UID >= 1000 selain 'nobody'
-USER_LIST=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd)
-
-for USER in $USER_LIST; do
-    if [ "$USER" == "root" ]; then continue; fi
-    
-    echo "    - Menghapus: $USER"
-    # Matikan paksa semua proses user tersebut (SIGKILL)
-    pkill -KILL -u "$USER" >/dev/null 2>&1
-    # Hapus user dan home directory secara paksa
-    userdel -f -r "$USER" >/dev/null 2>&1
-done
-
-# 3. BUAT USER BARU 'xccvme'
+# ===============================
+# STEP 3 CREATE ADMIN USER
+# ===============================
 USERNAME="xccvme"
 PASSWORD="xccvme"
 
-echo "[+] Membuat user admin: $USERNAME"
-# Pastikan user belum ada atau sisa-sisa user lama bersih
+echo "[+] Creating admin user $USERNAME"
+
 if ! id "$USERNAME" &>/dev/null; then
-    useradd -m -s /bin/bash -G sudo "$USERNAME"
+    useradd -m -s /bin/bash "$USERNAME"
 fi
 
-# Set password & Group
 echo "$USERNAME:$PASSWORD" | chpasswd
-# Pastikan masuk grup admin (sudo/wheel)
+
 if grep -q "^sudo:" /etc/group; then
     usermod -aG sudo "$USERNAME"
 elif grep -q "^wheel:" /etc/group; then
     usermod -aG wheel "$USERNAME"
 fi
 
-echo "    ✅ User $USERNAME berhasil dibuat."
+# ===============================
+# STEP 4 RESTART SSH
+# ===============================
+systemctl restart ssh 2>/dev/null || service ssh restart
 
-# 4. RESTART SERVICE SSH (Agar perubahan user user efek)
-if command -v systemctl >/dev/null 2>&1; then
-    systemctl restart ssh
-    systemctl restart sshd
+# ===============================
+# STEP 5 OPTIONAL LOCKDOWN MODE
+# ===============================
+echo ""
+read -p "Enable SAFE LOCKDOWN? (y/n): " ans
+
+if [[ "$ans" == "y" ]]; then
+    lock_system
+    echo "SAFE LOCK ENABLED"
 else
-    service ssh restart
+    echo "SYSTEM NOT LOCKED"
 fi
 
-# 5. KUNCI MATI SISTEM (SUPER IMMUTABLE LOCK)
-echo "[+] MENGUNCI FILE SISTEM (+i)..."
-for FILE in "${SYS_FILES[@]}"; do
-    chattr +i "$FILE"
-    if lsattr "$FILE" | grep -q "i"; then
-        echo "    🔒 Terkunci: $FILE"
-    else
-        echo "    ⚠️ Gagal mengunci: $FILE"
-    fi
-done
-
-# 6. BUAT ALAT EDIT KHUSUS (WRAPPER)
-echo "[+] Membuat alat manajemen user: edit-user-config"
-# Hapus tool lama jika ada
-rm -f "$LOCK_TOOL"
-
-cat > "$LOCK_TOOL" <<EOF
+# ===============================
+# STEP 6 MANAGEMENT TOOL
+# ===============================
+cat > "$LOCK_TOOL" << 'EOF'
 #!/bin/bash
-SYS_FILES=("/etc/passwd" "/etc/shadow" "/etc/group" "/etc/gshadow" "/etc/sudoers")
 
-echo "==================================================="
-echo "   SECURE USER MANAGER"
-echo "   Sistem User terkunci (Immutable)."
-echo "==================================================="
-echo "Menu Edit:"
-echo "1. Edit /etc/passwd (List User)"
-echo "2. Edit /etc/shadow (Password Hash)"
-echo "3. Edit /etc/sudoers (Izin Sudo)"
-echo "4. Keluar"
-read -p "Pilihan: " PILIH
+SYS_FILES=(
+"/etc/passwd"
+"/etc/shadow"
+"/etc/group"
+"/etc/gshadow"
+"/etc/sudoers"
+)
 
-case \$PILIH in
-    1) TARGET="/etc/passwd" ;;
-    2) TARGET="/etc/shadow" ;;
-    3) TARGET="/etc/sudoers" ;;
-    *) exit 0 ;;
+unlock() {
+for f in "${SYS_FILES[@]}"; do chattr -i "$f"; done
+}
+
+lock() {
+for f in "${SYS_FILES[@]}"; do chattr +i "$f"; done
+}
+
+echo "1 Unlock system"
+echo "2 Lock system"
+echo "3 Exit"
+read -p "Select: " x
+
+case $x in
+1) unlock ;;
+2) lock ;;
+*) exit ;;
 esac
-
-echo ""
-read -s -p "Masukkan Password Admin (xccvme): " MYPASS
-echo ""
-
-if [ "\$MYPASS" == "xccvme" ]; then
-    echo "🔓 Password Benar. Membuka kunci..."
-    for F in "\${SYS_FILES[@]}"; do chattr -i -a -u -e "\$F"; done
-    
-    echo "📝 Membuka NANO..."
-    nano \$TARGET
-    
-    echo "🔒 Mengunci kembali semua file..."
-    for F in "\${SYS_FILES[@]}"; do chattr +i "\$F"; done
-    echo "✅ Selesai."
-else
-    echo "❌ PASSWORD SALAH! Akses ditolak."
-    exit 1
-fi
 EOF
 
 chmod +x "$LOCK_TOOL"
 
-echo "========================================================"
-echo "   LOCKDOWN SELESAI"
-echo "========================================================"
-echo "⚠️  CATATAN PENTING:"
-echo "1. Sistem User (passwd/shadow) sekarang TERKUNCI (+i)."
-echo "2. Perintah 'useradd' atau 'passwd' biasa AKAN GAGAL."
-echo "3. Untuk mengedit user/password, GUNAKAN PERINTAH:"
-echo "   👉 edit-user-config"
-echo "   (Password akses: xccvme)"
-echo "========================================================"
+echo ""
+echo "======================================"
+echo "DONE"
+echo "======================================"
+echo "Admin login:"
+echo "username : $USERNAME"
+echo "password : $PASSWORD"
+echo ""
+echo "Manage lock:"
+echo "edit-user-config"
+echo ""
+echo "Add SSH still works normally"
+echo "======================================"

@@ -55,7 +55,7 @@ Port 2026
 # Izin Login
 PermitRootLogin yes
 PasswordAuthentication yes
-PubkeyAuthentication no
+PubkeyAuthentication yes
 ChallengeResponseAuthentication no
 
 # Fitur Lain
@@ -67,6 +67,9 @@ Subsystem sftp /usr/lib/openssh/sftp-server
 
 # Banner (Jika ada)
 Banner /etc/issue.net
+
+ClientAliveInterval 10
+ClientAliveCountMax 6
 EOF
 
 # Cek apakah file berhasil dibuat

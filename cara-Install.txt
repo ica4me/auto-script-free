@@ -1,6 +1,6 @@
 apt update;apt upgrade -y; apt install screen -y
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
-chmod +x *;screen -S Xwan ./setup.sh
+chmod +x *;screen ./setup.sh
 
 ===========
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh && chmod +x ubah-ssh.sh && ./ubah-ssh.sh

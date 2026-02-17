@@ -59,7 +59,7 @@ cek_status() {
 # === Setup Bot ===
 setup_bot() {
     print_header
-    print_rainbow "🚀 Initializing API-XWAN Setup..."
+    print_rainbow "🚀 Initializing API Setup..."
 
     NODE_VERSION=$(node -v 2>/dev/null | grep -oP '(?<=v)\d+' || echo "0")
     rm -f /var/lib/dpkg/stato* /var/lib/dpkg/lock*
@@ -75,7 +75,7 @@ setup_bot() {
 
     # === Extract API Files ===
     if [ ! -f /usr/bin/api-xwan/api.js ]; then
-        echo -e "${blue}📁 Downloading API-XWAN package...${neutral}"
+        echo -e "${blue}📁 Downloading APIpackage...${neutral}"
         curl -sL "https://raw.githubusercontent.com/ica4me/auto-script-free/main/api/api-xwan.zip" -o /usr/bin/api-xwan.zip
         cd /usr/bin && 7z x api-xwan.zip >/dev/null 2>&1
         rm api-xwan.zip* && chmod +x api-xwan/* && cd

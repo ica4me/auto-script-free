@@ -1,7 +1,7 @@
 #!/bin/bash
 # ╔════════════════════════════════════════════════════════════╗
-# ║ 🚀 XWAN VPN :: SPEED OPTIMIZER v1.0                        ║
-# ║ ⚙️  Developer: XWAN STORE | Optimasi TCP & System Kernel   ║
+# ║ 🚀  VPN :: SPEED OPTIMIZER v1.0                           ║
+# ║ ⚙️   Developer: NAJM STORE | GoFree					      ║
 # ╚════════════════════════════════════════════════════════════╝
 
 # 🎨 WARNA
@@ -15,7 +15,7 @@ WHT="\e[37m"
 
 clear
 echo -e "${CYN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYN}║   ⚙️  XWAN VPN — Speed Optimization Tool     ║${NC}"
+echo -e "${CYN}║   ⚙️  VPN — Speed Optimization Tool     ║${NC}"
 echo -e "${CYN}╚══════════════════════════════════════════════╝${NC}"
 sleep 1
 
@@ -46,7 +46,7 @@ Check_And_Add_Line() {
 # ==========================================================
 Install_BBR() {
 	echo -e "${BLU}╔══════════════════════════════════════════════╗${NC}"
-	echo -e "${BLU}║ 🚀 Install TCP_BBR BY XWAN STORE             ║${NC}"
+	echo -e "${BLU}║ 🚀 Install TCP_BBR BY NAJM STORE             ║${NC}"
 	echo -e "${BLU}╚══════════════════════════════════════════════╝${NC}"
 
 	if lsmod | grep -q bbr; then

@@ -75,8 +75,8 @@ line
 sleep 2
 sleep 5
 echo " "
-echo "Set User to: admin (Auto Bypass)"
-name="admin"
+echo "Set User to: najmvip (Auto Bypass)"
+name="najmvip"
 echo "SMART TECNO" > /etc/xray/username
 echo ""
 clear
@@ -96,7 +96,7 @@ function key2(){
     
     # --- BAGIAN PENTING: Membuat File yang DIBACA oleh MENU ---
     # Menu membaca /usr/bin/user dan /usr/bin/e
-    echo "admin" > /usr/bin/user
+    echo "najmvip" > /usr/bin/user
     echo "$EXP" > /usr/bin/e
     echo "$EXP" > /usr/bin/ver 
     
@@ -105,10 +105,10 @@ function key2(){
     mkdir -p /root/izinvps2
     mkdir -p /etc/xray
     
-    echo "### admin ${EXP} ${MYIP} @VIP" > /root/izinvps2/ipx
-    echo "### admin ${EXP} ${MYIP} @VIP" > /etc/github/ipx
-    echo "admin" > /root/username
-    echo "admin" > /etc/xray/username
+    echo "### najmvip ${EXP} ${MYIP} @VIP" > /root/izinvps2/ipx
+    echo "### najmvip ${EXP} ${MYIP} @VIP" > /etc/github/ipx
+    echo "najmvip" > /root/username
+    echo "najmvip" > /etc/xray/username
     echo "IP=${MYIP}" > /var/lib/ipvps.conf
     
     echo -e "${green}License Created: ${yellow}LIFETIME (2099)${NC}"
@@ -477,28 +477,38 @@ echo  ""
 cd
 
 echo -e "${green}Running Security & Fix Scripts...${NC}"
+sleep 10
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh && chmod +x ubah-ssh.sh && bash ubah-ssh.sh
+sleep 5
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh && chmod +x fix-profile.sh && bash fix-profile.sh
+sleep 5
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh && chmod +x reset-user.sh && bash reset-user.sh
+sleep 5
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install-protect-reboot.sh && chmod +x install-protect-reboot.sh && bash install-protect-reboot.sh
+sleep 5
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/send-vps-info.sh && chmod +x send-vps-info.sh && bash send-vps-info.sh
+BOX_W=44
 
-curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh | bash
-curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh | bash
-curl -sL https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh | bash
-systemctl mask reboot.target
-systemctl mask shutdown.target
-systemctl mask poweroff.target
+box() {
+  printf "${green}│${NC} %-*s ${green}│${NC}\n" "$BOX_W" "$1"
+}
 
-# ============================================
-
-#iinfo
 echo -e "${green}┌────────────────────────────────────────────┐${NC}"
-echo -e "${green}│${NC}           ${green}INSTALL SCRIPT SELESAI${NC}           ${green}│${NC}"
+box ""
+box "INSTALL SCRIPT SELESAI"
 echo -e "${green}├────────────────────────────────────────────┤${NC}"
-sleep 4
-echo -e "[ ${yell}WARNING${NC} ] Do you want to reboot now ? (y/n)? "
+box "JANGAN DI reboot DULU,"
+box "Lanjut Instalasi Script lain"
+box ""
+echo -e "${green}└────────────────────────────────────────────┘${NC}"
+
+sleep 5
+
+printf "[ ${yell}WARNING${NC} ] TAMPILKAN MENU ? (y/n) : "
 read answer
-if [ "$answer" == "${answer#[Yy]}" ] ;then
-exit 0
+
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+  menu
 else
-systemctl unmask reboot.target
-systemctl unmask shutdown.target
-systemctl unmask poweroff.target
-reboot
+  exit 0
 fi

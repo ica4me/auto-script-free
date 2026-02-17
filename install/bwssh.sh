@@ -1,7 +1,7 @@
 #!/bin/bash
 # ╔══════════════════════════════════════════════════════════╗
 # ║ 🛰️  SSH Live Bandwidth Monitor v1.0                      ║
-# ║ ⚙️  Developer : XWAN STORE                               ║
+# ║ ⚙️  Developer : NAJM STORE                               ║
 # ║ 📡  Fungsi    : Monitor real-time traffic per user SSH   ║
 # ╚══════════════════════════════════════════════════════════╝
 
