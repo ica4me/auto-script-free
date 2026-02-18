@@ -1,9 +1,8 @@
-![Main
-Menu](<p align="center">
-<img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png" width="700"/>
+[Main Menu]
 
+<p align="center">
+    <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png" width="300"/>
 </p>
-)
 
 # 📦 README --- Tutorial Instalasi Script VPS
 
