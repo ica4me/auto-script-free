@@ -101,6 +101,7 @@ mv "${SSHD_CONFIG}.tmp" "$SSHD_CONFIG"
 printf "\n%s\n" "$INCLUDE_LINE" >> "$SSHD_CONFIG"
 
 # Validasi konfigurasi sshd sebelum restart (penting)
+sed -i '/Subsystem sftp/d' /etc/ssh/sshd_config
 echo "[+] Validasi konfigurasi sshd..."
 if ! sshd -t -f "$SSHD_CONFIG"; then
   echo "❌ Konfigurasi sshd tidak valid. Membatalkan restart."
