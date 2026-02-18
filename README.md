@@ -4,7 +4,7 @@
     <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png" width="300"/>
 </p>
 
-# 📦 README --- Tutorial Instalasi Script VPS
+# 📦 Tutorial Instalasi (Step by Step)
 
 **Rekomendasi OS: Debian 11 / Debian 12 (Stable)**
 
@@ -29,7 +29,7 @@ pemasangan auto script secara berurutan hingga siap digunakan.
 - RAM minimal 1 GB (rekomendasi 2 GB)
 - Akses root SSH
 - Internet stabil
-- OS target: Debian 11 / 12
+- OS target: Debian 11 / 12 /ubuntu 22.04
 
 ---
 
