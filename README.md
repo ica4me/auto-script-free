@@ -69,6 +69,12 @@ systemctl restart chrony
 ### 4) Ubah konfigurasi SSH (Wajib)
 
 ```bash
+wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh
+chmod +x kunci-ssh.sh
+./kunci-ssh.sh
+```
+
+```bash
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh
 chmod +x ubah-ssh.sh
 ./ubah-ssh.sh
