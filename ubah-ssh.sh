@@ -186,6 +186,7 @@ EOF
 
 chmod 755 "$LOCK_TOOL"
 chown root:root "$LOCK_TOOL"
+rm ubah-ssh.sh
 
 echo "========================================================"
 echo "   SELESAI. SSH port: 2026 / 2003"
