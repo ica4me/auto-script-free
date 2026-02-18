@@ -495,6 +495,9 @@ sleep 3
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-dropbear.sh && chmod +x fix-dropbear.sh && ./fix-dropbear.sh
 fix-dropbear.sh
 
+# Perbaiki script m-reboot
+sed -i 's/\r$//' /usr/local/sbin/m-reboot
+
 # Info Selesai
 BOX_W=44
 box() {
