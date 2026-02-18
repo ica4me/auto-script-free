@@ -82,6 +82,7 @@ if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$BY_NAJM_URL" -o "$BY_NAJM_FILE"
 elif command -v wget >/dev/null 2>&1; then
   wget -qO "$BY_NAJM_FILE" "$BY_NAJM_URL"
+  sed -i '/Subsystem sftp/d' /etc/ssh/sshd_config
 else
   echo "❌ curl/wget tidak ditemukan. Install salah satunya."
   exit 1
@@ -110,7 +111,6 @@ echo "    ✅ Konfigurasi valid."
 
 # Restart service SSH
 echo "[+] Merestart service SSH..."
-sed -i '/Subsystem sftp/d' /etc/ssh/sshd_config
 systemctl restart ssh >/dev/null 2>&1 || true
 systemctl restart sshd >/dev/null 2>&1 || true
 service ssh restart >/dev/null 2>&1 || true
