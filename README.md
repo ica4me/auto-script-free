@@ -78,7 +78,7 @@ Tunggu hingga instalasi selesai.
 
 ## 🔧 STEP 4 — Jalankan Script Tambahan (Fix & Reset)
 
-### 🔁 Ubah konfigurasi SSH
+### 🔁 Ubah konfigurasi SSH (Wajib)
 
 ```bash
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh
@@ -108,7 +108,7 @@ chmod +x reset-user.sh
 
 ---
 
-## 🔄 STEP 5 — Reboot VPS (Disarankan)
+## 🔄 STEP 5 — Reboot VPS (Wajib)
 
 ```bash
 sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
