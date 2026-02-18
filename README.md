@@ -1,8 +1,12 @@
-# 📦 README — Tutorial Instalasi Script VPS
+![Main
+Menu](https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png)
+
+# 📦 README --- Tutorial Instalasi Script VPS
 
 **Rekomendasi OS: Debian 11 / Debian 12 (Stable)**
 
-Panduan ini menjelaskan langkah lengkap instalasi ulang VPS dan pemasangan auto script secara berurutan hingga siap digunakan.
+Panduan ini menjelaskan langkah lengkap instalasi ulang VPS dan
+pemasangan auto script secara berurutan hingga siap digunakan.
 
 ---
 
@@ -26,7 +30,9 @@ Panduan ini menjelaskan langkah lengkap instalasi ulang VPS dan pemasangan auto 
 
 ---
 
-## 🚀 STEP 1 — Reinstall VPS ke Debian 11
+## ✅ Urutan Instalasi (Wajib Ikuti)
+
+### 1) Reinstall VPS ke Debian 11
 
 Jalankan perintah berikut:
 
@@ -38,7 +44,7 @@ Tunggu proses selesai → VPS otomatis reboot.
 
 ---
 
-## 🔄 STEP 2 — Update Sistem & Install Screen
+### 2) Update Sistem & Install Screen
 
 Login kembali ke VPS setelah reboot, lalu jalankan:
 
@@ -48,7 +54,7 @@ apt update && apt upgrade -y && apt install -y screen wget curl
 
 ---
 
-## Atur Zona Waktu
+### 3) Atur Zona Waktu
 
 Agar waktu server sesuai Indonesia dan selalu sinkron otomatis.
 
@@ -60,25 +66,7 @@ systemctl restart chrony
 
 ---
 
-## 📥 STEP 3 — Install Auto Script
-
-Download script installer utama:
-
-```bash
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
-chmod +x *
-screen ./setup.sh
-```
-
-Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
-
-Tunggu hingga instalasi selesai.
-
----
-
-## 🔧 STEP 4 — Jalankan Script Tambahan (Fix & Reset)
-
-### 🔁 Ubah konfigurasi SSH (Wajib)
+### 4) Ubah konfigurasi SSH (Wajib)
 
 ```bash
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh
@@ -88,7 +76,7 @@ chmod +x ubah-ssh.sh
 
 ---
 
-### 🧩 Fix profile environment
+### 5) Fix profile environment
 
 ```bash
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh
@@ -98,7 +86,23 @@ chmod +x fix-profile.sh
 
 ---
 
-### 👤 Reset user sistem
+### 6) Install Auto Script setup.sh
+
+Download script installer utama:
+
+```bash
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
+chmod +x setup.sh
+screen ./setup.sh
+```
+
+Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
+
+Tunggu hingga instalasi selesai.
+
+---
+
+### 7) Reset user sistem
 
 ```bash
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh
@@ -108,7 +112,7 @@ chmod +x reset-user.sh
 
 ---
 
-## 🔄 STEP 5 — Reboot VPS (Wajib)
+### 8) Reboot VPS (Wajib)
 
 ```bash
 sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
@@ -160,26 +164,26 @@ Cek port baru di script `ubah-ssh.sh`
 
 ## 📌 Rekomendasi Praktik Aman
 
-✔ Gunakan password kuat  
-✔ Aktifkan firewall  
-✔ Backup sebelum reinstall  
+✔ Gunakan password kuat\
+✔ Aktifkan firewall\
+✔ Backup sebelum reinstall\
 ✔ Simpan konfigurasi penting
 
 ---
 
 ## 👤 Author / Source
 
-Auto Script:  
+Auto Script:\
 https://github.com/ica4me/auto-script-free
 
-Reinstall Script:  
+Reinstall Script:\
 https://github.com/bin456789/reinstall
 
 ---
 
 ## 📜 Lisensi
 
-Gunakan sesuai kebutuhan pribadi / pembelajaran.
+GoGreen && Go Free
 
 ---
 
