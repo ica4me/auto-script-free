@@ -140,7 +140,7 @@ read -e -p "$(printf "${FG_CYAN}ID Telegram : ${RESET}")" idtele
 printf "\n"
 line
 
-# === Inject token & najmvip list ke bot-cloudflare.py ===
+# === Inject token & admin list ke bot-cloudflare.py ===
 step "Menulis konfigurasi bot ke bot-cloudflare.py"
 escaped_token=$(printf '%s\n' "$tokenbot" | sed -e 's/[&/\]/\\&/g')
 idtele_cleaned=$(echo "$idtele" | tr -d '[:space:]')

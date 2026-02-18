@@ -35,7 +35,7 @@ fi
 # -----------------------------
 domain=$(cat /etc/xray/domain)
 MYIP=$(curl -sS ipv4.icanhazip.com)
-username="najmvip"
+username="admin"
 valid="2099-12-31"
 today=$(date +"%Y-%m-%d")
 d1=$(date -d "$valid" +%s)

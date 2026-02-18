@@ -99,16 +99,23 @@ systemctl restart ssh 2>/dev/null || service ssh restart
 
 # ===============================
 # STEP 5 OPTIONAL LOCKDOWN MODE
+# (timeout 5 detik, default = n)
 # ===============================
 echo ""
-read -p "Enable SAFE LOCKDOWN? (y/n): " ans
+ans="n"
+read -r -t 5 -p "Enable SAFE LOCKDOWN? (y/n) [auto n in 5s]: " ans || ans="n"
+echo ""
 
-if [[ "$ans" == "y" ]]; then
+case "${ans,,}" in
+  y|yes)
     lock_system
     echo "SAFE LOCK ENABLED"
-else
+    ;;
+  *)
     echo "SYSTEM NOT LOCKED"
-fi
+    ;;
+esac
+
 
 # ===============================
 # STEP 6 MANAGEMENT TOOL

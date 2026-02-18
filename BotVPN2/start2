@@ -78,8 +78,8 @@ server_app() {
     read -p "Masukkan token bot: " token
     while [ -z "$token" ]; do read -p "Masukkan token bot: " token; done
 
-    read -p "Masukkan najmvip ID: " najmvipid
-    while [ -z "$najmvipid" ]; do read -p "Masukkan najmvip ID: " najmvipid; done
+    read -p "Masukkan admin ID: " adminid
+    while [ -z "$adminid" ]; do read -p "Masukkan admin ID: " adminid; done
 
     read -p "Masukkan nama store: " namastore
     while [ -z "$namastore" ]; do read -p "Masukkan nama store: " namastore; done
@@ -106,7 +106,7 @@ server_app() {
     cat >/root/BotVPN2/.vars.json <<EOF
 {
   "BOT_TOKEN": "$token",
-  "USER_ID": "$najmvipid",
+  "USER_ID": "$adminid",
   "NAMA_STORE": "$namastore",
   "MERCHANT_ID": "$merchantid",
   "PORT": "50123",
