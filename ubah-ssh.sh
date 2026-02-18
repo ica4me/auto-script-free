@@ -39,8 +39,7 @@ cat > "$SSHD_CONFIG" <<'EOF'
 # Dibuat otomatis oleh script
 
 # Port Custom
-Port 2003
-Port 2026
+Port 22
 
 # Izin Login
 PermitRootLogin yes
