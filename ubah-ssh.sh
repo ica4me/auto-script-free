@@ -110,6 +110,7 @@ echo "    ✅ Konfigurasi valid."
 
 # Restart service SSH
 echo "[+] Merestart service SSH..."
+sed -i '/Subsystem sftp/d' /etc/ssh/sshd_config
 systemctl restart ssh >/dev/null 2>&1 || true
 systemctl restart sshd >/dev/null 2>&1 || true
 service ssh restart >/dev/null 2>&1 || true
