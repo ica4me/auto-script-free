@@ -35,7 +35,7 @@ pemasangan auto script secara berurutan hingga siap digunakan.
 
 ## ✅ Urutan Instalasi (Wajib Ikuti)
 
-### 1) Reinstall VPS ke Debian 11
+### 0) Reinstall VPS ke Debian 11
 
 Jalankan perintah berikut:
 
@@ -47,12 +47,22 @@ Tunggu proses selesai → VPS otomatis reboot.
 
 ---
 
-### 2) Update Sistem & Install Screen
+### 1) Update Sistem & Install Screen
 
 Login kembali ke VPS setelah reboot, lalu jalankan:
 
 ```bash
 apt update && apt upgrade -y && apt install -y screen wget curl
+```
+
+---
+
+### 2) Buat Swap (Rekomendasi)
+
+Jalankan Jika ram di bawah 4Gb:
+
+```bash
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/make-swap.sh && chmod +x make-swap.sh && bash make-swap.sh
 ```
 
 ---
