@@ -1,52 +1,42 @@
 #!/bin/bash
+set -euo pipefail
 
 # Pastikan script dijalankan sebagai root
 if [ "$(id -u)" -ne 0 ]; then
-    echo "❌ Error: Script ini harus dijalankan sebagai root (sudo)."
-    exit 1
+  echo "❌ Error: Script ini harus dijalankan sebagai root (sudo)."
+  exit 1
 fi
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 SSH_DIR="/etc/ssh"
+SSHD_D_DIR="/etc/ssh/sshd_config.d"
+BY_NAJM_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/by_najm.conf"
+BY_NAJM_FILE="${SSHD_D_DIR}/by_najm.conf"
 LOCK_TOOL="/usr/bin/edit-ssh"
 
 echo "========================================================"
-echo "   OTOMATISASI SSH: METODE REPLACE TOTAL"
+echo "   OTOMATISASI SSH: REPLACE + INCLUDE OVERRIDE + LOCK"
 echo "========================================================"
 
-# 1. JEBOL KUNCI FOLDER & FILE (PENTING!)
-echo "[+] Menjebol kunci folder /etc/ssh dan file config..."
-# Buka kunci folder induknya dulu
-chattr -R -i -a -u -e "$SSH_DIR" >/dev/null 2>&1
-# Buka kunci file spesifik
-chattr -i -a -u -e "$SSHD_CONFIG" >/dev/null 2>&1
+echo "[+] Membuka kunci (jika ada) /etc/ssh dan file config..."
+chattr -R -i -a -u -e "$SSH_DIR" >/dev/null 2>&1 || true
+chattr -i -a -u -e "$SSHD_CONFIG" >/dev/null 2>&1 || true
+chattr -i -a -u -e "$BY_NAJM_FILE" >/dev/null 2>&1 || true
 
-# Cek apakah masih terkunci
-if lsattr "$SSHD_CONFIG" | grep -q "[ia]"; then
-    echo "    ⚠️ PERINGATAN: File masih terdeteksi terkunci!"
-    echo "    🔨 Mencoba menghapus paksa..."
-fi
-
-# 2. BACKUP (Jika belum ada)
+# Backup (Jika belum ada)
 if [ -f "$SSHD_CONFIG" ] && [ ! -f "${SSHD_CONFIG}.bak" ]; then
-    cp "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
-    echo "[+] Backup dibuat di ${SSHD_CONFIG}.bak"
+  cp -a "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
+  echo "[+] Backup dibuat di ${SSHD_CONFIG}.bak"
 fi
 
-# 3. HAPUS FILE LAMA (JANGAN DIEDIT, HAPUS SAJA!)
+# Hapus file lama lalu buat ulang
 echo "[+] Menghapus file konfigurasi lama..."
 rm -f "$SSHD_CONFIG"
 
-# Jika rm gagal, kosongkan isinya
-if [ -f "$SSHD_CONFIG" ]; then
-    echo -n > "$SSHD_CONFIG"
-fi
-
-# 4. BUAT FILE BARU DARI NOL (CLEAN CONFIG)
 echo "[+] Menulis konfigurasi baru (Port 2026 & 2003)..."
-cat > "$SSHD_CONFIG" <<EOF
+cat > "$SSHD_CONFIG" <<'EOF'
 # KONFIGURASI SSH BARU - XCCVME
-# Dibuat otomatis oleh script sakti
+# Dibuat otomatis oleh script
 
 # Port Custom
 Port 2003
@@ -68,70 +58,137 @@ Subsystem sftp /usr/lib/openssh/sftp-server
 # Banner (Jika ada)
 Banner /etc/issue.net
 
+# Include
+Include /etc/ssh/sshd_config.d/by_najm.conf
+
 ClientAliveInterval 10
 ClientAliveCountMax 6
 EOF
 
-# Cek apakah file berhasil dibuat
-if [ -s "$SSHD_CONFIG" ]; then
-    echo "    ✅ Konfigurasi baru berhasil dibuat."
+if [ ! -s "$SSHD_CONFIG" ]; then
+  echo "❌ GAGAL MEMBUAT FILE BARU! Cek izin folder /etc/ssh."
+  exit 1
+fi
+echo "    ✅ Konfigurasi baru berhasil dibuat."
+
+# Pastikan directory sshd_config.d ada
+echo "[+] Memastikan direktori ${SSHD_D_DIR} ada..."
+mkdir -p "$SSHD_D_DIR"
+chown root:root "$SSHD_D_DIR"
+chmod 755 "$SSHD_D_DIR"
+
+# Download by_najm.conf apa adanya
+echo "[+] Mengunduh by_najm.conf -> ${BY_NAJM_FILE}"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL "$BY_NAJM_URL" -o "$BY_NAJM_FILE"
+elif command -v wget >/dev/null 2>&1; then
+  wget -qO "$BY_NAJM_FILE" "$BY_NAJM_URL"
 else
-    echo "    ❌ GAGAL MEMBUAT FILE BARU! Cek izin folder /etc/ssh."
-    exit 1
+  echo "❌ curl/wget tidak ditemukan. Install salah satunya."
+  exit 1
 fi
 
-# 5. RESTART SERVICE SSH
+chown root:root "$BY_NAJM_FILE"
+chmod 444 "$BY_NAJM_FILE"
+
+# Tambahkan Include paling akhir agar override menimpa aturan sebelumnya
+INCLUDE_LINE="Include ${BY_NAJM_FILE}"
+echo "[+] Memastikan Include override ada di baris paling akhir sshd_config..."
+# Hapus duplikat jika ada
+grep -vF "$INCLUDE_LINE" "$SSHD_CONFIG" > "${SSHD_CONFIG}.tmp"
+mv "${SSHD_CONFIG}.tmp" "$SSHD_CONFIG"
+# Tambahkan di akhir
+printf "\n%s\n" "$INCLUDE_LINE" >> "$SSHD_CONFIG"
+
+# Validasi konfigurasi sshd sebelum restart (penting)
+echo "[+] Validasi konfigurasi sshd..."
+if ! sshd -t -f "$SSHD_CONFIG"; then
+  echo "❌ Konfigurasi sshd tidak valid. Membatalkan restart."
+  echo "   Silakan cek file: $SSHD_CONFIG"
+  exit 1
+fi
+echo "    ✅ Konfigurasi valid."
+
+# Restart service SSH
 echo "[+] Merestart service SSH..."
-service ssh restart >/dev/null 2>&1
-service sshd restart >/dev/null 2>&1
-systemctl restart ssh >/dev/null 2>&1
-systemctl restart sshd >/dev/null 2>&1
+systemctl restart ssh >/dev/null 2>&1 || true
+systemctl restart sshd >/dev/null 2>&1 || true
+service ssh restart >/dev/null 2>&1 || true
+service sshd restart >/dev/null 2>&1 || true
 
-# 6. KUNCI MATI (SUPER LOCK)
-echo "[+] Mengaktifkan SUPER LOCK (+i)..."
+# Lock kuat: permission read-only + immutable
+echo "[+] Mengaktifkan LOCK kuat (chmod 444 + chattr +i)..."
+chown root:root "$SSHD_CONFIG"
+chmod 444 "$SSHD_CONFIG"
 chattr +i "$SSHD_CONFIG"
+chattr +i "$BY_NAJM_FILE"
 
-if lsattr "$SSHD_CONFIG" | grep -q "i"; then
-    echo "    🔒 SUKSES: File BERHASIL dikunci Mati."
-else
-    echo "    ⚠️ Gagal mengunci file."
-fi
-
-# 7. MEMBUAT ALAT EDIT KHUSUS
 echo "[+] Membuat alat edit aman: $LOCK_TOOL"
 rm -f "$LOCK_TOOL"
+
+# Password admin diminta "xccvme" — simpan hash (bukan plaintext compare)
+# sha256("xccvme") = 7d0f5a... (akan dihitung saat generate tool)
+PASS_HASH="$(printf '%s' "xccvme" | sha256sum | awk '{print $1}')"
+
 cat > "$LOCK_TOOL" <<EOF
 #!/bin/bash
+set -euo pipefail
+
 TARGET="/etc/ssh/sshd_config"
+OVERRIDE="/etc/ssh/sshd_config.d/by_najm.conf"
+EXPECTED_HASH="${PASS_HASH}"
 
 echo "==================================================="
 echo "   SECURE SSH EDITOR"
 echo "==================================================="
-read -s -p "Masukkan Password Admin (xccvme): " MYPASS
+read -s -p "Masukkan Password Admin: " MYPASS
 echo ""
 
-if [ "\$MYPASS" == "xccvme" ]; then
-    echo "🔓 Membuka kunci..."
-    chattr -i -a \$TARGET
-    
-    echo "📝 Membuka NANO..."
-    nano \$TARGET
-    
-    echo "🔒 Mengunci kembali..."
-    chattr +i \$TARGET
-    
-    echo "🔄 Restart SSH..."
-    service ssh restart >/dev/null 2>&1
-    service sshd restart >/dev/null 2>&1
-    echo "✅ Selesai."
-else
-    echo "❌ PASSWORD SALAH!"
-    exit 1
+INPUT_HASH=\$(printf '%s' "\$MYPASS" | sha256sum | awk '{print \$1}')
+
+if [ "\$INPUT_HASH" != "\$EXPECTED_HASH" ]; then
+  echo "❌ PASSWORD SALAH!"
+  exit 1
 fi
+
+echo "🔓 Membuka kunci sementara..."
+chattr -i "\$TARGET" 2>/dev/null || true
+chattr -i "\$OVERRIDE" 2>/dev/null || true
+chmod 600 "\$TARGET" "\$OVERRIDE"
+
+EDITOR_BIN="\${EDITOR:-nano}"
+
+echo "📝 Edit file utama: \$TARGET"
+"\$EDITOR_BIN" "\$TARGET"
+
+echo "📝 Edit file override: \$OVERRIDE"
+"\$EDITOR_BIN" "\$OVERRIDE"
+
+echo "✅ Validasi konfigurasi sshd..."
+if ! sshd -t -f "\$TARGET"; then
+  echo "❌ Konfigurasi tidak valid. Tidak akan restart. File tetap dibuka (tidak dikunci) agar bisa diperbaiki."
+  exit 1
+fi
+
+echo "🔄 Restart SSH..."
+systemctl restart ssh >/dev/null 2>&1 || true
+systemctl restart sshd >/dev/null 2>&1 || true
+service ssh restart >/dev/null 2>&1 || true
+service sshd restart >/dev/null 2>&1 || true
+
+echo "🔒 Mengunci kembali (chmod 444 + chattr +i)..."
+chmod 444 "\$TARGET" "\$OVERRIDE"
+chattr +i "\$TARGET"
+chattr +i "\$OVERRIDE"
+
+echo "✅ Selesai."
 EOF
 
-chmod +x "$LOCK_TOOL"
+chmod 755 "$LOCK_TOOL"
+chown root:root "$LOCK_TOOL"
 
 echo "========================================================"
-echo "   SELESAI. COBA LOGIN VIA PORT 2026 / 2003"
+echo "   SELESAI. SSH port: 2026 / 2003"
+echo "   Override aktif: $BY_NAJM_FILE"
+echo "   Editor aman: $LOCK_TOOL"
 echo "========================================================"
