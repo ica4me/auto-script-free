@@ -125,3 +125,4 @@ echo "$UNIT_NAME"
 echo ""
 echo "Reboot persistent: YES"
 echo ""
+rm make-swap.sh
