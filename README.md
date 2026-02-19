@@ -1,7 +1,9 @@
-### \[ScreenShot Main Menu\]
+<p align="center">
+    ### \[ScreenShot Main Menu\]</p>
 
-![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png)
-
+<p align="center">
+ <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png" width="300"/>
+</p>
 # 📦 Tutorial Instalasi (Step by Step)
 
 **Rekomendasi OS: Debian 11 / Debian 12 (Stable)**
@@ -182,4 +184,6 @@ Selamat VPS Anda siap digunakan 🚀
 
 ## SUPPORT & DONASI
 
-![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7450-a26a-7087-9cdc-20bce874e9ef/Qris_Dana_Najm.jpeg)
+<p align="center">
+ <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7450-a26a-7087-9cdc-20bce874e9ef/Qris_Dana_Najm.jpeg" width="300"/>
+</p>
