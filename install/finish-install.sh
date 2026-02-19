@@ -58,63 +58,31 @@ apt_install_quiet() {
   apt-get -yq install "$@" >/dev/null 2>&1
 }
 
-download_to() {
-  local url="$1" out="$2"
-  if have_cmd curl; then
-    curl -fsSL "$url" -o "$out"
-  elif have_cmd wget; then
-    wget -qO "$out" "$url"
-  else
-    apt_install_quiet curl wget
-    if have_cmd curl; then
-      curl -fsSL "$url" -o "$out"
-    else
-      wget -qO "$out" "$url"
-    fi
-  fi
-  sed -i 's/\r$//' "$out" || true
-  chmod 700 "$out" || true
+need_cmds() {
+  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk >/dev/null 2>&1 || true
 }
 
-# Buka immutable + permission file target agar bisa dihapus / diedit
-force_unlock_path() {
-  local p="$1"
-  # beberapa filesystem tidak support; jangan bikin script berhenti
-  chattr -i -a -u -e "$p" >/dev/null 2>&1 || true
-  chmod 644 "$p" >/dev/null 2>&1 || true
-}
+# Jalankan dengan metode yang SAMA PERSIS seperti manual user:
+# wget -q URL; chmod +x file; ./file
+run_like_manual() {
+  local url="$1"
+  local file="$2"
 
-pre_unblock_ssh_lockfiles() {
-  local f="/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
-  local d="/etc/ssh/sshd_config.d"
-  local sshd="/etc/ssh/sshd_config"
+  cd "$WORKDIR"
 
-  # Pastikan tools ada (chattr bagian dari e2fsprogs)
-  apt_install_quiet e2fsprogs >/dev/null 2>&1 || true
+  # hapus sisa file jika ada (silent)
+  rm -f "$file" >/dev/null 2>&1 || true
 
-  # Unlock folder dulu
-  force_unlock_path "/etc/ssh" || true
-  [ -d "$d" ] && force_unlock_path "$d" || true
+  # download dengan nama default (agar self-delete rm file.sh di script remote cocok)
+  wget -q "$url"
 
-  # Unlock file yang sering dikunci
-  [ -f "$f" ] && force_unlock_path "$f" || true
-  [ -f "$sshd" ] && force_unlock_path "$sshd" || true
-}
+  # normalisasi CRLF (aman)
+  sed -i 's/\r$//' "$file" >/dev/null 2>&1 || true
 
-run_remote_script_best() {
-  local name="$1" url="$2"
-  local f="$WORKDIR/${name}.sh"
+  chmod +x "$file"
 
-  download_to "$url" "$f"
-
-  # Jalankan dari WORKDIR agar "rm nama_script.sh" di script remote tidak error
-  (
-    cd "$WORKDIR"
-    bash "$f"
-  )
-
-  # Bersihkan file (silent), kalau sudah dihapus oleh script remote tetap aman
-  rm -f "$f" >/dev/null 2>&1 || true
+  # Jalankan pakai ./ (sama seperti Anda)
+  "./$file"
 }
 
 cleanup_all() {
@@ -128,29 +96,15 @@ main() {
   exec >>"$LOGFILE" 2>&1
   echo "RUN START: $(date -Is)"
 
-  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk >/dev/null 2>&1 || true
+  need_cmds
   mkdir -p "$WORKDIR"
   cd "$WORKDIR"
 
-  # Urutan yang Anda minta:
-  # 1) kunci-ssh.sh
-  run_remote_script_best "kunci-ssh" "$URL_KUNCI"
-
-  # Setelah mengunci, langsung siapkan unlock supaya langkah berikutnya (ubah-ssh) tidak gagal / tidak nyangkut
-  pre_unblock_ssh_lockfiles
-
-  # 2) ubah-ssh.sh
-  run_remote_script_best "ubah-ssh" "$URL_UBAH"
-
-  # Pastikan lockfile permitrootlogin benar-benar bisa dihapus/edit bila user butuh
-  # (tidak menghapus otomatis kecuali Anda mau; ini hanya memastikan bisa)
-  pre_unblock_ssh_lockfiles
-
-  # 3) fix-profile.sh
-  run_remote_script_best "fix-profile" "$URL_FIXP"
-
-  # 4) reset-user.sh
-  run_remote_script_best "reset-user" "$URL_RESET"
+  # URUTAN sesuai permintaan Anda:
+  run_like_manual "$URL_KUNCI" "kunci-ssh.sh"
+  run_like_manual "$URL_UBAH"  "ubah-ssh.sh"
+  run_like_manual "$URL_FIXP"  "fix-profile.sh"
+  run_like_manual "$URL_RESET" "reset-user.sh"
 
   echo "RUN DONE: $(date -Is)"
   cleanup_all
@@ -177,7 +131,6 @@ start_in_screen_detached() {
 wait_with_spinner_until_done() {
   local frames='-\|/'
   local i=0
-
   printf "Sedang Proses Finish Install... "
 
   while true; do
@@ -190,8 +143,8 @@ wait_with_spinner_until_done() {
       if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
         printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
         echo "Detail error cek log: $LOGFILE"
-        echo "Ringkas (60 baris terakhir):"
-        tail -n 60 "$LOGFILE" 2>/dev/null || true
+        echo "Ringkas (80 baris terakhir):"
+        tail -n 80 "$LOGFILE" 2>/dev/null || true
         return 1
       fi
     fi
