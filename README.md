@@ -1,6 +1,5 @@
-[Main Menu]
-
 <p align="center">
+    ## [Main Menu]
     <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png" width="300"/>
 </p>
 
