@@ -85,7 +85,7 @@ echo ""
 function key2(){
     clear
     echo -e "${green}┌──────────────────────────────────────────┐${NC}"
-    echo -e "${green}│       \033[1;37mGENERATING LOCAL LICENSE...   ${green}   │${NC}"
+    echo -e "${green}│       \033[1;37mGENERATING LOCAL LICENSE...   ${green}     │${NC}"
     echo -e "${green}└──────────────────────────────────────────┘${NC}"
     sleep 1
     

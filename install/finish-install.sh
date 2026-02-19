@@ -6,9 +6,10 @@ SESSION_NAME="finish_install"
 WORKDIR="/root/finish_install"
 LOGFILE="/var/log/finish_install.log"
 
-URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
+URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
 SELF_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
 
@@ -42,9 +43,10 @@ set -Eeuo pipefail
 LOGFILE="/var/log/finish_install.log"
 WORKDIR="/root/finish_install"
 
-URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
+URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
 SELF_PATH="${SELF_PATH:-}"
 
@@ -74,23 +76,48 @@ download_to() {
   chmod 700 "$out" || true
 }
 
+# Buka immutable + permission file target agar bisa dihapus / diedit
+force_unlock_path() {
+  local p="$1"
+  # beberapa filesystem tidak support; jangan bikin script berhenti
+  chattr -i -a -u -e "$p" >/dev/null 2>&1 || true
+  chmod 644 "$p" >/dev/null 2>&1 || true
+}
+
+pre_unblock_ssh_lockfiles() {
+  local f="/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
+  local d="/etc/ssh/sshd_config.d"
+  local sshd="/etc/ssh/sshd_config"
+
+  # Pastikan tools ada (chattr bagian dari e2fsprogs)
+  apt_install_quiet e2fsprogs >/dev/null 2>&1 || true
+
+  # Unlock folder dulu
+  force_unlock_path "/etc/ssh" || true
+  [ -d "$d" ] && force_unlock_path "$d" || true
+
+  # Unlock file yang sering dikunci
+  [ -f "$f" ] && force_unlock_path "$f" || true
+  [ -f "$sshd" ] && force_unlock_path "$sshd" || true
+}
+
 run_remote_script_best() {
   local name="$1" url="$2"
   local f="$WORKDIR/${name}.sh"
 
   download_to "$url" "$f"
 
-  # Penting: jalankan dari WORKDIR supaya "rm nama_script.sh" di dalam script remote tidak error
+  # Jalankan dari WORKDIR agar "rm nama_script.sh" di script remote tidak error
   (
     cd "$WORKDIR"
     bash "$f"
   )
 
-  # Bersihkan file (kalau sudah dihapus oleh script remote, tidak akan error)
+  # Bersihkan file (silent), kalau sudah dihapus oleh script remote tetap aman
   rm -f "$f" >/dev/null 2>&1 || true
 }
 
-cleanup_and_self_delete() {
+cleanup_all() {
   rm -rf "$WORKDIR" >/dev/null 2>&1 || true
   if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
     rm -f "$SELF_PATH" >/dev/null 2>&1 || true
@@ -101,15 +128,32 @@ main() {
   exec >>"$LOGFILE" 2>&1
   echo "RUN START: $(date -Is)"
 
-  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk || true
+  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk >/dev/null 2>&1 || true
   mkdir -p "$WORKDIR"
+  cd "$WORKDIR"
 
-  run_remote_script_best "reset-user"  "$URL_RESET"
-  run_remote_script_best "ubah-ssh"    "$URL_UBAH"
+  # Urutan yang Anda minta:
+  # 1) kunci-ssh.sh
+  run_remote_script_best "kunci-ssh" "$URL_KUNCI"
+
+  # Setelah mengunci, langsung siapkan unlock supaya langkah berikutnya (ubah-ssh) tidak gagal / tidak nyangkut
+  pre_unblock_ssh_lockfiles
+
+  # 2) ubah-ssh.sh
+  run_remote_script_best "ubah-ssh" "$URL_UBAH"
+
+  # Pastikan lockfile permitrootlogin benar-benar bisa dihapus/edit bila user butuh
+  # (tidak menghapus otomatis kecuali Anda mau; ini hanya memastikan bisa)
+  pre_unblock_ssh_lockfiles
+
+  # 3) fix-profile.sh
   run_remote_script_best "fix-profile" "$URL_FIXP"
 
+  # 4) reset-user.sh
+  run_remote_script_best "reset-user" "$URL_RESET"
+
   echo "RUN DONE: $(date -Is)"
-  cleanup_and_self_delete
+  cleanup_all
 }
 
 main "$@"
@@ -127,7 +171,6 @@ start_in_screen_detached() {
     return 0
   fi
 
-  # kirim SELF_PATH ke runner supaya bisa self-delete
   screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
 }
 
@@ -138,19 +181,17 @@ wait_with_spinner_until_done() {
   printf "Sedang Proses Finish Install... "
 
   while true; do
-    # sukses
     if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
       printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
       return 0
     fi
 
-    # error: sudah start, tapi screen session hilang sebelum DONE
     if [ -f "$LOGFILE" ] && grep -q "RUN START:" "$LOGFILE" 2>/dev/null; then
       if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
         printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
         echo "Detail error cek log: $LOGFILE"
-        echo "Ringkas (50 baris terakhir):"
-        tail -n 50 "$LOGFILE" 2>/dev/null || true
+        echo "Ringkas (60 baris terakhir):"
+        tail -n 60 "$LOGFILE" 2>/dev/null || true
         return 1
       fi
     fi
