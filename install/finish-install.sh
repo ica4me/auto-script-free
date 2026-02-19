@@ -78,19 +78,20 @@ run_remote_script_best() {
   local name="$1" url="$2"
   local f="$WORKDIR/${name}.sh"
 
-  echo "---- [$name] download ----"
   download_to "$url" "$f"
 
-  # “Paling sakti”: jalankan via bash eksplisit (bukan ./file)
-  echo "---- [$name] exec (bash $f) ----"
-  bash "$f"
+  # Penting: jalankan dari WORKDIR supaya "rm nama_script.sh" di dalam script remote tidak error
+  (
+    cd "$WORKDIR"
+    bash "$f"
+  )
+
+  # Bersihkan file (kalau sudah dihapus oleh script remote, tidak akan error)
+  rm -f "$f" >/dev/null 2>&1 || true
 }
 
 cleanup_and_self_delete() {
-  # bersihkan workdir (runner + script yang diunduh)
   rm -rf "$WORKDIR" >/dev/null 2>&1 || true
-
-  # hapus script induk (best-effort)
   if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
     rm -f "$SELF_PATH" >/dev/null 2>&1 || true
   fi
@@ -98,9 +99,7 @@ cleanup_and_self_delete() {
 
 main() {
   exec >>"$LOGFILE" 2>&1
-  echo "===================================================="
   echo "RUN START: $(date -Is)"
-  echo "===================================================="
 
   apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk || true
   mkdir -p "$WORKDIR"
@@ -109,11 +108,7 @@ main() {
   run_remote_script_best "ubah-ssh"    "$URL_UBAH"
   run_remote_script_best "fix-profile" "$URL_FIXP"
 
-  echo "===================================================="
   echo "RUN DONE: $(date -Is)"
-  echo "LOGFILE: $LOGFILE"
-  echo "===================================================="
-
   cleanup_and_self_delete
 }
 
@@ -123,6 +118,7 @@ RUNNER
 }
 
 start_in_screen_detached() {
+  mkdir -p "$WORKDIR"
   touch "$LOGFILE" || true
   chmod 600 "$LOGFILE" || true
 
@@ -135,34 +131,34 @@ start_in_screen_detached() {
   screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
 }
 
-wait_with_loading_until_done() {
-  echo "Proses Install ##....: mulai"
-  echo "Log: $LOGFILE"
-  echo "===================================================="
-  echo "Loading... (akan selesai otomatis bila muncul RUN DONE)"
-  echo "===================================================="
+wait_with_spinner_until_done() {
+  local frames='-\|/'
+  local i=0
 
-  # Start tail background
-  ( tail -n0 -F "$LOGFILE" 2>/dev/null & echo $! > "$WORKDIR/tail.pid" ) || true
+  printf "Sedang Proses Finish Install... "
 
-  # Tunggu sampai marker selesai
   while true; do
+    # sukses
     if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
-      break
+      printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
+      return 0
     fi
-    sleep 1
+
+    # error: sudah start, tapi screen session hilang sebelum DONE
+    if [ -f "$LOGFILE" ] && grep -q "RUN START:" "$LOGFILE" 2>/dev/null; then
+      if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
+        printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
+        echo "Detail error cek log: $LOGFILE"
+        echo "Ringkas (50 baris terakhir):"
+        tail -n 50 "$LOGFILE" 2>/dev/null || true
+        return 1
+      fi
+    fi
+
+    printf "\rSedang Proses Finish Install... %c" "${frames:i%4:1}"
+    i=$((i+1))
+    sleep 0.2
   done
-
-  # Stop tail
-  if [ -f "$WORKDIR/tail.pid" ]; then
-    kill "$(cat "$WORKDIR/tail.pid")" >/dev/null 2>&1 || true
-    rm -f "$WORKDIR/tail.pid" >/dev/null 2>&1 || true
-  fi
-
-  echo "===================================================="
-  echo "Proses Install ##....: selesai"
-  echo "Terminal sudah bisa dipakai untuk perintah berikutnya."
-  echo "===================================================="
 }
 
 main() {
@@ -179,7 +175,7 @@ main() {
 
   make_runner
   start_in_screen_detached
-  wait_with_loading_until_done
+  wait_with_spinner_until_done
 }
 
 main "$@"

@@ -34,25 +34,6 @@ ensure_screen() {
   have_cmd screen
 }
 
-download_to() {
-  local url="$1" out="$2"
-  if have_cmd curl; then
-    curl -fsSL "$url" -o "$out"
-  elif have_cmd wget; then
-    wget -qO "$out" "$url"
-  else
-    apt_install_quiet curl wget
-    if have_cmd curl; then
-      curl -fsSL "$url" -o "$out"
-    else
-      wget -qO "$out" "$url"
-    fi
-  fi
-  # Normalisasi CRLF -> LF (hindari parsing aneh)
-  sed -i 's/\r$//' "$out" || true
-  chmod 700 "$out" || true
-}
-
 make_runner() {
   mkdir -p "$WORKDIR"
   cat > "$WORKDIR/runner.sh" <<'RUNNER'
@@ -99,18 +80,20 @@ run_remote_script_best() {
   local name="$1" url="$2"
   local f="$WORKDIR/${name}.sh"
 
-  echo "---- [$name] download ----"
   download_to "$url" "$f"
 
-  # “Paling sakti”: jalankan via bash eksplisit (bukan ./file)
-  echo "---- [$name] exec (bash $f) ----"
-  bash "$f"
+  # Penting: jalankan dari WORKDIR agar "rm nama_script.sh" di dalam script remote tidak error
+  (
+    cd "$WORKDIR"
+    bash "$f"
+  )
+
+  # Bersihkan file (kalau sudah dihapus oleh script remote, rm -f tidak akan error)
+  rm -f "$f" >/dev/null 2>&1 || true
 }
 
 cleanup_and_self_delete() {
-  # cleanup workdir
   rm -rf "$WORKDIR" >/dev/null 2>&1 || true
-  # hapus file induk (best-effort)
   if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
     rm -f "$SELF_PATH" >/dev/null 2>&1 || true
   fi
@@ -118,13 +101,10 @@ cleanup_and_self_delete() {
 
 main() {
   exec >>"$LOGFILE" 2>&1
-  echo "===================================================="
   echo "RUN START: $(date -Is)"
-  echo "===================================================="
 
   apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk || true
 
-  # Chrony + timezone
   apt_install_quiet chrony
   if have_cmd timedatectl; then
     timedatectl set-timezone "$TZ" || true
@@ -132,21 +112,15 @@ main() {
     ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime || true
     echo "$TZ" > /etc/timezone || true
   fi
-
   systemctl restart chrony >/dev/null 2>&1 || service chrony restart >/dev/null 2>&1 || true
 
   mkdir -p "$WORKDIR"
 
-  # Jalankan 3 script remote
   run_remote_script_best "kunci-ssh" "$URL_KUNCI"
   run_remote_script_best "ubah-ssh"  "$URL_UBAH"
   run_remote_script_best "fix-profile" "$URL_FIXP"
 
-  echo "===================================================="
   echo "RUN DONE: $(date -Is)"
-  echo "LOGFILE: $LOGFILE"
-  echo "===================================================="
-
   cleanup_and_self_delete
 }
 
@@ -156,47 +130,48 @@ RUNNER
 }
 
 start_in_screen_detached() {
+  mkdir -p "$WORKDIR"
   touch "$LOGFILE" || true
   chmod 600 "$LOGFILE" || true
 
-  # Kalau session sudah ada, jangan duplikasi
+  # kalau session ada, jangan dobel
   if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
     return 0
   fi
 
-  # Start detached, kirim SELF_PATH ke runner agar bisa self-delete
+  # Start detached, kirim SELF_PATH ke runner agar self-delete
   screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
 }
 
-wait_with_loading_until_done() {
-  echo "Proses Install ##....: mulai"
-  echo "Log: $LOGFILE"
-  echo "===================================================="
-  echo "Loading... (akan selesai otomatis bila runner DONE)"
-  echo "===================================================="
+wait_with_spinner_until_done() {
+  # Spinner sederhana, tidak menampilkan log
+  local frames='-\|/'
+  local i=0
 
-  # Ikuti log sampai ketemu marker RUN DONE, lalu tail berhenti otomatis
-  # (tail -n0: mulai dari baris baru)
-  ( tail -n0 -F "$LOGFILE" 2>/dev/null & echo $! > "$WORKDIR/tail.pid" ) || true
+  printf "Sedang Proses Setup Install... "
 
-  # Loop cek marker selesai
   while true; do
+    # sukses
     if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
-      break
+      printf "\rSedang Proses Setup Install... ✅ Selesai.\n"
+      return 0
     fi
-    sleep 1
+
+    # error: runner menulis "RUN START" tapi tidak selesai, dan screen session sudah hilang
+    if [ -f "$LOGFILE" ] && grep -q "RUN START:" "$LOGFILE" 2>/dev/null; then
+      if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
+        printf "\rSedang Proses Setup Install... ❌ Gagal.\n"
+        echo "Detail error cek log: $LOGFILE"
+        echo "Ringkas (50 baris terakhir):"
+        tail -n 50 "$LOGFILE" 2>/dev/null || true
+        return 1
+      fi
+    fi
+
+    printf "\rSedang Proses Setup Install... %c" "${frames:i%4:1}"
+    i=$((i+1))
+    sleep 0.2
   done
-
-  # Matikan tail
-  if [ -f "$WORKDIR/tail.pid" ]; then
-    kill "$(cat "$WORKDIR/tail.pid")" >/dev/null 2>&1 || true
-    rm -f "$WORKDIR/tail.pid" >/dev/null 2>&1 || true
-  fi
-
-  echo "===================================================="
-  echo "Proses Install ##....: selesai"
-  echo "Terminal sudah bisa dipakai untuk perintah berikutnya."
-  echo "===================================================="
 }
 
 main() {
@@ -213,7 +188,7 @@ main() {
 
   make_runner
   start_in_screen_detached
-  wait_with_loading_until_done
+  wait_with_spinner_until_done
 }
 
 main "$@"
