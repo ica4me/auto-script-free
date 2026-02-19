@@ -1,44 +1,36 @@
-<p align="center">
-    [ScreenShot Main Menu]</p>
-    
-<p align="center">
-    <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/main_menu.png" width="300"/>
-</p>
+### \[ScreenShot Main Menu\]
+
+![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png)
 
 # 📦 Tutorial Instalasi (Step by Step)
 
 **Rekomendasi OS: Debian 11 / Debian 12 (Stable)**
-
-Panduan ini menjelaskan langkah lengkap instalasi ulang VPS dan
-pemasangan auto script secara berurutan hingga siap digunakan.
-
----
-
-## ⚠️ PERINGATAN PENTING
-
-- Proses reinstall akan **menghapus seluruh data VPS**
-- Backup data penting sebelum melanjutkan
-- Gunakan akses **root**
-- Pastikan koneksi VPS stabil
-- Disarankan VPS kosong / fresh install
 
 ---
 
 ## 🖥️ Persyaratan
 
 - VPS KVM / VM full virtualization
-- RAM minimal 1 GB (rekomendasi 2 GB)
+- RAM minimal 1 GB (Rekomendasi 2GB atau Lebih)
 - Akses root SSH
 - Internet stabil
 - OS target: Debian 11 / 12 /ubuntu 22.04
+- Disarankan VPS kosong / fresh install (Silahkan Rebuild)
+- Pointing Cloudflare Sudah di setting
+
+---
+
+## 🔐 **Security Group (Firewall Rules)**
+
+- Open all inbound ports 0-65535
+- Open all outbound ports 0-65535
+- Allow All Protocol (Any Protocol)
 
 ---
 
 ## ✅ Urutan Instalasi (Wajib Ikuti)
 
-### 0) Reinstall VPS ke Debian 11
-
-Jalankan perintah berikut:
+### 0) Reinstall VPS ke Debian 11 (Opsional)
 
 ```bash
 wget https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && chmod +x reinstall.sh && bash reinstall.sh debian 11 && reboot
@@ -50,7 +42,7 @@ Tunggu proses selesai → VPS otomatis reboot.
 
 ### 1) Update Sistem & Install Screen
 
-Login kembali ke VPS setelah reboot, lalu jalankan:
+Login kembali ke VPS setelah reboot, lalu jalankan update:
 
 ```bash
 apt update && apt upgrade -y && apt install -y screen wget curl
@@ -60,7 +52,7 @@ apt update && apt upgrade -y && apt install -y screen wget curl
 
 ### 2) Buat Swap (Rekomendasi)
 
-Jalankan Jika ram di bawah 4Gb:
+Jalankan Jika Ram di bawah 4Gb:
 
 ```bash
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/make-swap.sh && chmod +x make-swap.sh && bash make-swap.sh
@@ -68,47 +60,19 @@ wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/make-swa
 
 ---
 
-### 3) Atur Zona Waktu
+### 3) Setup Install (wajib)
 
-Agar waktu server sesuai Indonesia dan selalu sinkron otomatis.
+Persiapan Sebelum instalasi Utama.
 
 ```bash
-apt install chrony -y
-timedatectl set-timezone Asia/Jakarta
-systemctl restart chrony
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/install-setup.sh
+chmod +x install-setup.sh
+sudo ./install-setup.sh
 ```
 
 ---
 
-### 4) Ubah konfigurasi SSH (Wajib)
-
-```bash
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh
-chmod +x kunci-ssh.sh
-./kunci-ssh.sh
-```
-
-```bash
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh
-chmod +x ubah-ssh.sh
-./ubah-ssh.sh
-```
-
----
-
-### 5) Fix profile environment
-
-```bash
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh
-chmod +x fix-profile.sh
-./fix-profile.sh
-```
-
----
-
-### 6) Install Auto Script setup.sh
-
-Download script installer utama:
+### 4) Install Auto Script [setup.sh](http://setup.sh) (wajib)
 
 ```bash
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh
@@ -118,21 +82,19 @@ screen ./setup.sh
 
 Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
 
-Tunggu hingga instalasi selesai.
-
 ---
 
-### 7) Reset user sistem
+### 5) Finis Install (wajib)
 
 ```bash
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh
-chmod +x reset-user.sh
-./reset-user.sh
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/finish-install.sh
+chmod +x finish-install.sh
+sudo ./finish-install.sh
 ```
 
 ---
 
-### 8) Reboot VPS (Wajib)
+### 8) Reboot VPS (Opsional)
 
 ```bash
 sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
@@ -141,16 +103,6 @@ sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
 ---
 
 ## ✅ Instalasi Selesai
-
-Jika semua langkah berhasil:
-
-- Sistem Debian fresh
-- Auto script aktif
-- SSH sudah dikonfigurasi
-- User sistem sudah reset
-- Environment sudah fix
-
-Script siap digunakan.
 
 ---
 
@@ -178,35 +130,56 @@ screen -r
 
 ### ❌ Tidak bisa login SSH setelah ubah port
 
-Cek port baru di script `ubah-ssh.sh`
+Gunakan Port 22/2003/2026
+
+```bash
+ssh root@ip-vps -p 2003
+```
 
 ---
 
-## 📌 Rekomendasi Praktik Aman
-
-✔ Gunakan password kuat\
-✔ Aktifkan firewall\
-✔ Backup sebelum reinstall\
-✔ Simpan konfigurasi penting
-
 ---
 
-## 👤 Author / Source
+## 👤 Mod by / Source
 
-Auto Script:\
-https://github.com/ica4me/auto-script-free
+Website:
 
-Reinstall Script:\
+https://vip.meiyu.my.id/
+
+Github:  
+https://github.com/ica4me
+
+Reinstall Script:  
 https://github.com/bin456789/reinstall
 
 ---
 
 ## 📜 Lisensi
 
-GoGreen && Go Free
+Go Free
 
 ---
 
 ## ⭐ Selesai
 
 Selamat VPS Anda siap digunakan 🚀
+
+<details>
+<summary>**Setting CloudFlare**</summary>
+
+- Pointing Domain
+
+![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7444-f003-7799-bcc0-80f9c61acd84/image.png)
+
+- TLS/SSL Harus pilih yang FULL![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7447-2fcf-750a-b222-53b91b110896/image.png)
+- Always HTTPS harus dimatiin![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7449-e919-7198-96c0-e30138ba6b39/image.png)
+- Network aktifin WebSocket dan gRPC![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c744b-8d70-756c-bbeb-4ee5a045658d/image.png)
+- Tambahkan wilcard agar support bug pakai wildcard
+
+![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7450-2e15-7048-8eaf-465058c8b690/image.png)
+
+</details>
+
+## SUPPORT & DONASI
+
+![](https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/019c7450-a26a-7087-9cdc-20bce874e9ef/Qris_Dana_Najm.jpeg)
