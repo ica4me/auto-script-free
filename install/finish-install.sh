@@ -12,6 +12,7 @@ URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-pro
 URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
 SELF_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+RUN_ID="$(date +%Y%m%d-%H%M%S)"
 
 require_root() {
   if [ "${EUID:-$(id -u)}" -ne 0 ]; then
@@ -49,6 +50,7 @@ URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-pro
 URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
 SELF_PATH="${SELF_PATH:-}"
+RUN_ID="${RUN_ID:-unknown}"
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
@@ -59,29 +61,48 @@ apt_install_quiet() {
 }
 
 need_cmds() {
-  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk >/dev/null 2>&1 || true
+  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk e2fsprogs >/dev/null 2>&1 || true
 }
 
-# Jalankan dengan metode yang SAMA PERSIS seperti manual user:
+log_mark() {
+  # marker pendek, mudah diparse
+  echo "RUN_ID=${RUN_ID} $1: $(date -Is)"
+}
+
+unlock_ssh_blockers() {
+  # Buka immutable/permission yang sering bikin script lain gagal
+  local f="/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
+  local d="/etc/ssh/sshd_config.d"
+  local sshd="/etc/ssh/sshd_config"
+
+  # unlock dir & file (best-effort, tidak bikin exit)
+  chattr -R -i -a -u -e /etc/ssh >/dev/null 2>&1 || true
+  [ -d "$d" ] && chattr -i -a -u -e "$d" >/dev/null 2>&1 || true
+
+  if [ -e "$f" ]; then
+    chattr -i -a -u -e "$f" >/dev/null 2>&1 || true
+    chmod 644 "$f" >/dev/null 2>&1 || true
+  fi
+
+  if [ -f "$sshd" ]; then
+    chattr -i -a -u -e "$sshd" >/dev/null 2>&1 || true
+    chmod 644 "$sshd" >/dev/null 2>&1 || true
+  fi
+}
+
+# Jalankan persis seperti manual:
 # wget -q URL; chmod +x file; ./file
 run_like_manual() {
   local url="$1"
   local file="$2"
 
   cd "$WORKDIR"
-
-  # hapus sisa file jika ada (silent)
   rm -f "$file" >/dev/null 2>&1 || true
 
-  # download dengan nama default (agar self-delete rm file.sh di script remote cocok)
   wget -q "$url"
-
-  # normalisasi CRLF (aman)
   sed -i 's/\r$//' "$file" >/dev/null 2>&1 || true
-
   chmod +x "$file"
 
-  # Jalankan pakai ./ (sama seperti Anda)
   "./$file"
 }
 
@@ -94,22 +115,37 @@ cleanup_all() {
 
 main() {
   exec >>"$LOGFILE" 2>&1
-  echo "RUN START: $(date -Is)"
 
-  need_cmds
   mkdir -p "$WORKDIR"
-  cd "$WORKDIR"
+  need_cmds
 
-  # URUTAN sesuai permintaan Anda:
+  log_mark "START"
+
+  # Pastikan state ssh tidak nyangkut dari run sebelumnya
+  unlock_ssh_blockers
+
+  # Urutan yang Anda minta:
+  # 1) kunci-ssh
   run_like_manual "$URL_KUNCI" "kunci-ssh.sh"
-  run_like_manual "$URL_UBAH"  "ubah-ssh.sh"
-  run_like_manual "$URL_FIXP"  "fix-profile.sh"
+
+  # Setelah kunci, kita unlock dulu supaya step berikutnya bisa ubah tanpa bentrok,
+  # dan supaya Anda bisa rm/edit file permitrootlogin bila perlu.
+  unlock_ssh_blockers
+
+  # 2) ubah-ssh
+  run_like_manual "$URL_UBAH" "ubah-ssh.sh"
+
+  # 3) fix-profile
+  run_like_manual "$URL_FIXP" "fix-profile.sh"
+
+  # 4) reset-user (ini restart ssh; kalau ssh config invalid akan gagal)
   run_like_manual "$URL_RESET" "reset-user.sh"
 
-  echo "RUN DONE: $(date -Is)"
+  log_mark "DONE"
   cleanup_all
 }
 
+trap 'log_mark "FAIL"; exit 1' ERR
 main "$@"
 RUNNER
   chmod 700 "$WORKDIR/runner.sh"
@@ -120,33 +156,57 @@ start_in_screen_detached() {
   touch "$LOGFILE" || true
   chmod 600 "$LOGFILE" || true
 
-  # jika session sudah ada, jangan dobel
+  # kalau session sudah ada, hentikan dulu agar tidak tabrakan run
   if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-    return 0
+    # best-effort kill session
+    screen -S "$SESSION_NAME" -X quit >/dev/null 2>&1 || true
   fi
 
-  screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
+  screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' RUN_ID='$RUN_ID' bash '$WORKDIR/runner.sh'"
 }
 
 wait_with_spinner_until_done() {
   local frames='-\|/'
   local i=0
+
   printf "Sedang Proses Finish Install... "
 
   while true; do
-    if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
+    # sukses untuk RUN_ID ini
+    if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
       printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
       return 0
     fi
 
-    if [ -f "$LOGFILE" ] && grep -q "RUN START:" "$LOGFILE" 2>/dev/null; then
-      if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
+    # gagal untuk RUN_ID ini
+    if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
+      printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
+      echo "Detail error cek log: $LOGFILE"
+      echo "Ringkas (120 baris terakhir):"
+      tail -n 120 "$LOGFILE" 2>/dev/null || true
+      return 1
+    fi
+
+    # safety: kalau session hilang tapi tidak ada DONE/FAIL (misal crash keras)
+    if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
+      # tunggu sedikit agar log sempat flush
+      sleep 0.5
+      if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
+        printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
+        return 0
+      fi
+      if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
         printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
         echo "Detail error cek log: $LOGFILE"
-        echo "Ringkas (80 baris terakhir):"
-        tail -n 80 "$LOGFILE" 2>/dev/null || true
+        echo "Ringkas (120 baris terakhir):"
+        tail -n 120 "$LOGFILE" 2>/dev/null || true
         return 1
       fi
+      printf "\rSedang Proses Finish Install... ❌ Gagal (session berhenti).\n"
+      echo "Detail error cek log: $LOGFILE"
+      echo "Ringkas (120 baris terakhir):"
+      tail -n 120 "$LOGFILE" 2>/dev/null || true
+      return 1
     fi
 
     printf "\rSedang Proses Finish Install... %c" "${frames:i%4:1}"
