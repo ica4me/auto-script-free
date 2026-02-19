@@ -27,36 +27,10 @@ apt_install_quiet() {
   apt-get -yq install "$@" >/dev/null 2>&1
 }
 
-pick_mux() {
-  if have_cmd tmux; then echo "tmux"; return; fi
-  if have_cmd screen; then echo "screen"; return; fi
-
-  apt_install_quiet tmux || true
-  if have_cmd tmux; then echo "tmux"; return; fi
-
-  apt_install_quiet screen || true
-  if have_cmd screen; then echo "screen"; return; fi
-
-  echo "none"
-}
-
-download_to() {
-  local url="$1" out="$2"
-  if have_cmd curl; then
-    curl -fsSL "$url" -o "$out"
-  elif have_cmd wget; then
-    wget -qO "$out" "$url"
-  else
-    apt_install_quiet curl wget
-    if have_cmd curl; then
-      curl -fsSL "$url" -o "$out"
-    else
-      wget -qO "$out" "$url"
-    fi
-  fi
-  # Normalisasi CRLF -> LF supaya parsing bash stabil
-  sed -i 's/\r$//' "$out" || true
-  chmod 700 "$out" || true
+ensure_screen() {
+  if have_cmd screen; then return 0; fi
+  apt_install_quiet screen
+  have_cmd screen
 }
 
 make_runner() {
@@ -72,7 +46,6 @@ URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
 
-# Dikirim oleh script induk via environment saat spawn
 SELF_PATH="${SELF_PATH:-}"
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -108,9 +81,19 @@ run_remote_script_best() {
   echo "---- [$name] download ----"
   download_to "$url" "$f"
 
-  # “Paling sakti”: jalankan via bash eksplisit, bukan ./file
+  # “Paling sakti”: jalankan via bash eksplisit (bukan ./file)
   echo "---- [$name] exec (bash $f) ----"
   bash "$f"
+}
+
+cleanup_and_self_delete() {
+  # bersihkan workdir (runner + script yang diunduh)
+  rm -rf "$WORKDIR" >/dev/null 2>&1 || true
+
+  # hapus script induk (best-effort)
+  if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
+    rm -f "$SELF_PATH" >/dev/null 2>&1 || true
+  fi
 }
 
 main() {
@@ -119,11 +102,9 @@ main() {
   echo "RUN START: $(date -Is)"
   echo "===================================================="
 
-  # Dependensi minimal
   apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk || true
   mkdir -p "$WORKDIR"
 
-  # Urutan sesuai permintaan
   run_remote_script_best "reset-user"  "$URL_RESET"
   run_remote_script_best "ubah-ssh"    "$URL_UBAH"
   run_remote_script_best "fix-profile" "$URL_FIXP"
@@ -133,10 +114,7 @@ main() {
   echo "LOGFILE: $LOGFILE"
   echo "===================================================="
 
-  # Hapus diri sendiri (best-effort). Kalau SELF_PATH kosong, skip aman.
-  if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
-    rm -f "$SELF_PATH" || true
-  fi
+  cleanup_and_self_delete
 }
 
 main "$@"
@@ -144,64 +122,64 @@ RUNNER
   chmod 700 "$WORKDIR/runner.sh"
 }
 
-start_detached() {
-  local mux="$1"
-
+start_in_screen_detached() {
   touch "$LOGFILE" || true
   chmod 600 "$LOGFILE" || true
 
-  if [ "$mux" = "tmux" ]; then
-    if tmux has-session -t "$SESSION_NAME" >/dev/null 2>&1; then
-      return 0
-    fi
-    # Pass SELF_PATH ke runner agar bisa self-delete
-    tmux new-session -d -s "$SESSION_NAME" "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
+  # jika session sudah ada, jangan dobel
+  if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
     return 0
   fi
 
-  if [ "$mux" = "screen" ]; then
-    if screen -list 2>/dev/null | grep -q "[[:space:]]$SESSION_NAME"; then
-      return 0
-    fi
-    screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
-    return 0
-  fi
-
-  return 1
+  # kirim SELF_PATH ke runner supaya bisa self-delete
+  screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
 }
 
-print_minimal_status_and_exit() {
-  echo -n "Proses Install ##....: "
-  echo "jalan di background"
+wait_with_loading_until_done() {
+  echo "Proses Install ##....: mulai"
   echo "Log: $LOGFILE"
-  echo "Monitor: tail -f $LOGFILE"
-  echo "Attach tmux:  tmux attach -t $SESSION_NAME"
-  echo "Attach screen: screen -r $SESSION_NAME"
+  echo "===================================================="
+  echo "Loading... (akan selesai otomatis bila muncul RUN DONE)"
+  echo "===================================================="
+
+  # Start tail background
+  ( tail -n0 -F "$LOGFILE" 2>/dev/null & echo $! > "$WORKDIR/tail.pid" ) || true
+
+  # Tunggu sampai marker selesai
+  while true; do
+    if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
+      break
+    fi
+    sleep 1
+  done
+
+  # Stop tail
+  if [ -f "$WORKDIR/tail.pid" ]; then
+    kill "$(cat "$WORKDIR/tail.pid")" >/dev/null 2>&1 || true
+    rm -f "$WORKDIR/tail.pid" >/dev/null 2>&1 || true
+  fi
+
+  echo "===================================================="
+  echo "Proses Install ##....: selesai"
+  echo "Terminal sudah bisa dipakai untuk perintah berikutnya."
+  echo "===================================================="
 }
 
 main() {
   require_root
-
   if ! have_cmd apt-get; then
     echo "❌ Sistem ini tidak menggunakan apt-get."
     exit 1
   fi
 
+  if ! ensure_screen; then
+    echo "❌ Gagal install/menemukan screen."
+    exit 1
+  fi
+
   make_runner
-
-  local mux
-  mux="$(pick_mux)"
-  if [ "$mux" = "none" ]; then
-    echo "❌ Gagal menyiapkan tmux/screen. Coba: apt-get install -y tmux"
-    exit 1
-  fi
-
-  if ! start_detached "$mux"; then
-    echo "❌ Gagal menjalankan session background."
-    exit 1
-  fi
-
-  print_minimal_status_and_exit
+  start_in_screen_detached
+  wait_with_loading_until_done
 }
 
 main "$@"
