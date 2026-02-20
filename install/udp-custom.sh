@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==================================================
-# UDP Custom Installer by ePro Dev. Team
+# UDP Custom Installer (FIXED & CLEAN)
 # ==================================================
 
 # Pindah ke root directory dan buat folder untuk UDP
@@ -12,19 +12,17 @@ echo "📅 Setting timezone ke GMT+7..."
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
 # ==================================================
-# Download udp-custom binary
+# Download udp-custom binary dari GITHUB SENDIRI
 # ==================================================
-echo "⬇️  Mengunduh udp-custom..."
-wget -q --show-progress --load-cookies /tmp/cookies.txt \
-"https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1_VyhL5BILtoZZTW4rhnUiYzc4zHOsXQ8' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1_VyhL5BILtoZZTW4rhnUiYzc4zHOsXQ8" \
--O /root/udp/udp-custom && rm -rf /tmp/cookies.txt
+echo "⬇️  Mengunduh udp-custom bersih..."
+# GANTI LINK DI BAWAH DENGAN LINK RAW GITHUB ANDA
+wget -q --show-progress "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/instal_deteksi" -O /root/udp/udp-custom
 chmod +x /root/udp/udp-custom
 
-# Download default config
+# Download default config dari GITHUB SENDIRI
 echo "⬇️  Mengunduh konfigurasi default..."
-wget -q --show-progress --load-cookies /tmp/cookies.txt \
-"https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1_XNXsufQXzcTUVVKQoBeX5Ig0J7GngGM' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1_XNXsufQXzcTUVVKQoBeX5Ig0J7GngGM" \
--O /root/udp/config.json && rm -rf /tmp/cookies.txt
+# GANTI LINK DI BAWAH DENGAN LINK RAW GITHUB ANDA
+wget -q --show-progress "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config.json" -O /root/udp/config.json
 chmod 644 /root/udp/config.json
 
 # ==================================================
@@ -75,4 +73,4 @@ systemctl daemon-reload
 systemctl start udp-custom
 systemctl enable udp-custom
 
-echo "✅ UDP Custom telah berhasil dijalankan dan di-enable!"
+echo "✅ UDP Custom telah berhasil dijalankan dan di-enable secara AMAN!"

