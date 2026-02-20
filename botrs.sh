@@ -29,7 +29,7 @@ rm -rf cybervpn
 
 clear
 
-wget https://raw.githubusercontent.com/kiryusekei/v7/main/limit/cybervpn.zip
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bors/cybervpn.zip
 unzip cybervpn.zip
 cd cybervpn
 rm var.txt
