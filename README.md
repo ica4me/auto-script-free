@@ -57,7 +57,7 @@ apt update && apt upgrade -y && apt install -y screen wget curl
 Jalankan Jika Ram di bawah 4Gb:
 
 ```bash
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/make-swap.sh && chmod +x make-swap.sh && bash make-swap.sh
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/make-swap.sh && chmod +x make-swap.sh && bash make-swap.sh
 ```
 
 ---
