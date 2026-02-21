@@ -26,7 +26,7 @@ rm -f /etc/haproxy/haproxy.cfg
 
 echo "[INFO] Mengunduh haproxy.cfg yang baru..."
 wget -qO /etc/haproxy/haproxy.cfg https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/haproxy.cfg
-
+echo "" >> /etc/haproxy/haproxy.cfg
 
 # ==========================================
 # 3. Restart Services
