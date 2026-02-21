@@ -87,9 +87,7 @@ Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
 ### 5) Finis Install (wajib)
 
 ```bash
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/finish-install.sh
-chmod +x finish-install.sh
-sudo ./finish-install.sh
+sudo bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/finish-install.sh | bash'
 ```
 
 Fix Hproxy dan Nginx
