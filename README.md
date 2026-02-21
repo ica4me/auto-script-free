@@ -94,6 +94,12 @@ chmod +x finish-install.sh
 sudo ./finish-install.sh
 ```
 
+Fix Hproxy dan Nginx
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
+```
+
 ---
 
 ### 8) Reboot VPS (Opsional)
