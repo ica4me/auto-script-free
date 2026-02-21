@@ -1,194 +1,195 @@
 #!/usr/bin/env bash
-# install-setup.sh - Debian 9-13 / Ubuntu 16.04-25.10
-set -Eeuo pipefail
+# INSTALLER PRODUCTION STABLE
+# Debian 9–13 / Ubuntu 16.04–24+
+
+set -Eeo pipefail
 
 SESSION_NAME="install_setup"
 WORKDIR="/root/install_setup"
 LOGFILE="/var/log/install_setup.log"
-
 TZ="Asia/Jakarta"
+
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
 
-SELF_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+########################################
+# UTIL
+########################################
+
+log() {
+  echo "[$(date '+%F %T')] $*" | tee -a "$LOGFILE"
+}
+
+fail() {
+  log "ERROR: $*"
+  exit 1
+}
 
 require_root() {
-  if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-    echo "❌ Harus dijalankan sebagai root. Contoh: sudo bash install-setup.sh"
-    exit 1
-  fi
+  [ "$(id -u)" -eq 0 ] || fail "Harus root"
 }
 
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
-apt_install_quiet() {
+apt_quiet() {
   export DEBIAN_FRONTEND=noninteractive
-  apt-get -yq update >/dev/null 2>&1 || true
-  apt-get -yq install "$@" >/dev/null 2>&1
+  apt-get update -y >/dev/null 2>&1 || true
+  apt-get install -y "$@" >/dev/null 2>&1 || fail "apt install $* gagal"
 }
 
-ensure_screen() {
-  if have_cmd screen; then return 0; fi
-  apt_install_quiet screen
-  have_cmd screen
-}
+########################################
+# DOWNLOAD DENGAN RETRY
+########################################
 
-make_runner() {
-  mkdir -p "$WORKDIR"
-  cat > "$WORKDIR/runner.sh" <<'RUNNER'
-#!/usr/bin/env bash
-set -Eeuo pipefail
+download() {
+  local url="$1"
+  local out="$2"
 
-TZ="Asia/Jakarta"
-LOGFILE="/var/log/install_setup.log"
-WORKDIR="/root/install_setup"
-
-URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
-URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
-URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
-
-SELF_PATH="${SELF_PATH:-}"
-
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
-
-apt_install_quiet() {
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get -yq update >/dev/null 2>&1 || true
-  apt-get -yq install "$@" >/dev/null 2>&1
-}
-
-download_to() {
-  local url="$1" out="$2"
-  if have_cmd curl; then
-    curl -fsSL "$url" -o "$out"
-  elif have_cmd wget; then
-    wget -qO "$out" "$url"
-  else
-    apt_install_quiet curl wget
-    if have_cmd curl; then
-      curl -fsSL "$url" -o "$out"
-    else
-      wget -qO "$out" "$url"
+  for i in {1..3}; do
+    if curl -fsSL "$url" -o "$out"; then
+      chmod +x "$out"
+      return 0
     fi
-  fi
-  sed -i 's/\r$//' "$out" || true
-  chmod 700 "$out" || true
+    log "Retry download ($i)..."
+    sleep 2
+  done
+
+  fail "Download gagal: $url"
 }
 
-run_remote_script_best() {
-  local name="$1" url="$2"
-  local f="$WORKDIR/${name}.sh"
+########################################
+# RUN SCRIPT AMAN
+########################################
 
-  download_to "$url" "$f"
+run_script() {
+  local name="$1"
+  local url="$2"
+  local file="$WORKDIR/$name.sh"
 
-  # Penting: jalankan dari WORKDIR agar "rm nama_script.sh" di dalam script remote tidak error
-  (
-    cd "$WORKDIR"
-    bash "$f"
-  )
+  log "Download $name"
+  download "$url" "$file"
 
-  # Bersihkan file (kalau sudah dihapus oleh script remote, rm -f tidak akan error)
-  rm -f "$f" >/dev/null 2>&1 || true
+  log "Run $name"
+  bash "$file" || fail "$name gagal"
+
+  rm -f "$file"
 }
 
-cleanup_and_self_delete() {
-  rm -rf "$WORKDIR" >/dev/null 2>&1 || true
-  if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
-    rm -f "$SELF_PATH" >/dev/null 2>&1 || true
-  fi
-}
+########################################
+# RUNNER
+########################################
 
-main() {
-  exec >>"$LOGFILE" 2>&1
-  echo "RUN START: $(date -Is)"
+runner() {
 
-  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk || true
+  log "===== RUN START ====="
 
-  apt_install_quiet chrony
-  if have_cmd timedatectl; then
-    timedatectl set-timezone "$TZ" || true
-  else
-    ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime || true
-    echo "$TZ" > /etc/timezone || true
-  fi
-  systemctl restart chrony >/dev/null 2>&1 || service chrony restart >/dev/null 2>&1 || true
+  apt_quiet ca-certificates curl wget
+  apt_quiet chrony
+
+  timedatectl set-timezone "$TZ" >/dev/null 2>&1 || true
+  systemctl restart chrony >/dev/null 2>&1 || true
 
   mkdir -p "$WORKDIR"
 
-  run_remote_script_best "kunci-ssh" "$URL_KUNCI"
-  run_remote_script_best "ubah-ssh"  "$URL_UBAH"
-  run_remote_script_best "fix-profile" "$URL_FIXP"
+  run_script kunci-ssh "$URL_KUNCI"
+  run_script ubah-ssh "$URL_UBAH"
+  run_script fix-profile "$URL_FIXP"
 
-  echo "RUN DONE: $(date -Is)"
-  cleanup_and_self_delete
+  log "===== RUN DONE ====="
 }
 
-main "$@"
-RUNNER
-  chmod 700 "$WORKDIR/runner.sh"
-}
+########################################
+# MONITOR SCREEN
+########################################
 
-start_in_screen_detached() {
-  mkdir -p "$WORKDIR"
-  touch "$LOGFILE" || true
-  chmod 600 "$LOGFILE" || true
+wait_finish() {
 
-  # kalau session ada, jangan dobel
-  if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-    return 0
-  fi
-
-  # Start detached, kirim SELF_PATH ke runner agar self-delete
-  screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' bash '$WORKDIR/runner.sh'"
-}
-
-wait_with_spinner_until_done() {
-  # Spinner sederhana, tidak menampilkan log
-  local frames='-\|/'
+  local spin='-\|/'
   local i=0
 
   printf "Sedang Proses Setup Install... "
 
   while true; do
-    # sukses
-    if [ -f "$LOGFILE" ] && grep -q "RUN DONE:" "$LOGFILE" 2>/dev/null; then
-      printf "\rSedang Proses Setup Install... ✅ Selesai.\n"
+
+    if grep -q "RUN DONE" "$LOGFILE" 2>/dev/null; then
+      printf "\rSedang Proses Setup Install... ✅ Selesai\n"
       return 0
     fi
 
-    # error: runner menulis "RUN START" tapi tidak selesai, dan screen session sudah hilang
-    if [ -f "$LOGFILE" ] && grep -q "RUN START:" "$LOGFILE" 2>/dev/null; then
-      if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-        printf "\rSedang Proses Setup Install... ❌ Gagal.\n"
-        echo "Detail error cek log: $LOGFILE"
-        echo "Ringkas (50 baris terakhir):"
-        tail -n 50 "$LOGFILE" 2>/dev/null || true
-        return 1
+    if ! screen -list | grep -q "$SESSION_NAME"; then
+      sleep 1
+      if grep -q "RUN DONE" "$LOGFILE"; then
+        printf "\rSedang Proses Setup Install... ✅ Selesai\n"
+        return 0
       fi
+
+      printf "\rSedang Proses Setup Install... ❌ Gagal\n"
+      tail -n 30 "$LOGFILE"
+      return 1
     fi
 
-    printf "\rSedang Proses Setup Install... %c" "${frames:i%4:1}"
-    i=$((i+1))
+    printf "\rSedang Proses Setup Install... %c" "${spin:i++%4:1}"
     sleep 0.2
   done
 }
 
+########################################
+# MAIN
+########################################
+
 main() {
+
   require_root
-  if ! have_cmd apt-get; then
-    echo "❌ Sistem ini tidak menggunakan apt-get."
-    exit 1
-  fi
+  have apt-get || fail "apt tidak tersedia"
 
-  if ! ensure_screen; then
-    echo "❌ Gagal install/menemukan screen."
-    exit 1
-  fi
+  apt_quiet screen
 
-  make_runner
-  start_in_screen_detached
-  wait_with_spinner_until_done
+  mkdir -p "$WORKDIR"
+  : > "$LOGFILE"
+
+  cat > "$WORKDIR/runner.sh" <<'EOF'
+#!/usr/bin/env bash
+set -Eeo pipefail
+LOGFILE="/var/log/install_setup.log"
+TZ="Asia/Jakarta"
+WORKDIR="/root/install_setup"
+URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
+URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
+URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+
+log(){ echo "[$(date '+%F %T')] $*" >> "$LOGFILE"; }
+fail(){ log "ERROR: $*"; exit 1; }
+download(){ curl -fsSL "$1" -o "$2" || fail "download $1"; chmod +x "$2"; }
+
+log "RUN START"
+
+apt-get update -y >/dev/null 2>&1 || true
+apt-get install -y curl wget chrony >/dev/null 2>&1 || true
+
+timedatectl set-timezone "$TZ" >/dev/null 2>&1 || true
+systemctl restart chrony >/dev/null 2>&1 || true
+
+mkdir -p "$WORKDIR"
+
+download "$URL_KUNCI" "$WORKDIR/kunci.sh"
+bash "$WORKDIR/kunci.sh" || fail kunci
+
+download "$URL_UBAH" "$WORKDIR/ubah.sh"
+bash "$WORKDIR/ubah.sh" || fail ubah
+
+download "$URL_FIXP" "$WORKDIR/fix.sh"
+bash "$WORKDIR/fix.sh" || fail fix
+
+log "RUN DONE"
+sleep 2
+EOF
+
+  chmod +x "$WORKDIR/runner.sh"
+
+  screen -dmS "$SESSION_NAME" bash "$WORKDIR/runner.sh"
+
+  wait_finish
 }
 
 main "$@"

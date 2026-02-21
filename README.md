@@ -67,9 +67,7 @@ wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/make-swap.sh
 Persiapan Sebelum instalasi Utama.
 
 ```bash
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/install-setup.sh
-chmod +x install-setup.sh
-sudo ./install-setup.sh
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/install-setup.sh | bash
 ```
 
 ---
