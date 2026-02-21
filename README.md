@@ -96,6 +96,12 @@ Fix Hproxy dan Nginx
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
 ```
 
+Fix Xray Failed Start
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-xray.sh | bash
+```
+
 ---
 
 ### 8) Reboot VPS (Opsional)
