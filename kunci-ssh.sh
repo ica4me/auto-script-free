@@ -93,4 +93,3 @@ echo ""
 echo "   Untuk membuka kunci, gunakan perintah:"
 echo "   $UNLOCK_TOOL"
 echo "====================================================="
-rm kunci-ssh.sh
