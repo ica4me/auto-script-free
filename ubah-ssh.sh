@@ -184,8 +184,7 @@ EOF
 
 chmod 755 "$LOCK_TOOL"
 chown root:root "$LOCK_TOOL"
-rm ubah-ssh.sh
-
+rm -f ubah-ssh.sh 2>/dev/null || true
 echo "========================================================"
 echo "   SELESAI. SSH port: 2026 / 2003"
 echo "   Override aktif: $BY_NAJM_FILE"
