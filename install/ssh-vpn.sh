@@ -193,7 +193,19 @@ apt-get install -y fail2ban >/dev/null 2>&1
 # ---------------------------
 info "Setting up Banner..."
 # Create a clean banner manually, DO NOT download from repo
-echo "<br><font color='cyan'><b>★ VPS PREMIUM BYPASSED (LIFETIME) ★</b></font><br>" > /etc/issue.net
+cat > /etc/issue.net << 'EOF'
+<font color="#00FFFF"><b>======================================</b></font><br>
+<font color="#FFD700"><b>🌟 WELCOME TO NAJM VIP TUNNEL 🌟</b></font><br>
+<font color="#00FFFF"><b>======================================</b></font><br>
+<font color="#FFFFFF">Ayo langganan Premium untuk internet lebih ngebut!</font><br>
+<br>
+<font color="#00FF00"><b>📞 Chat WhatsApp:</b></font><br>
+<a href="https://wa.me/6285156319660">https://wa.me/6285156319660</a><br>
+<br>
+<font color="#00BFFF"><b>🌐 Kunjungi Website:</b></font><br>
+<a href="https://vip.meiyu.my.id/">https://vip.meiyu.my.id/</a><br>
+<font color="#00FFFF"><b>======================================</b></font>
+EOF
 
 if wget -q -O /root/setrsyslog.sh "${REPO}install/setrsyslog.sh"; then
   chmod +x /root/setrsyslog.sh && bash /root/setrsyslog.sh || true

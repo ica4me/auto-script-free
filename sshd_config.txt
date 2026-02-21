@@ -9,7 +9,7 @@ UsePAM yes
 
 X11Forwarding yes
 
-PrintMotd no
+PrintMotd yes
 
 
 Banner /etc/banner.com
