@@ -1,231 +1,247 @@
 #!/usr/bin/env bash
-# finish-install.sh - Debian 9-13 / Ubuntu 16.04-25.10 (Fixed & Improved)
+# =====================================================
+# FINISH INSTALL — PRODUCTION SAFE FINAL
+# Debian 9-13 / Ubuntu 16.04+
+# =====================================================
 set -Eeuo pipefail
 
 SESSION_NAME="finish_install"
 WORKDIR="/root/finish_install"
 LOGFILE="/var/log/finish_install.log"
+STATUS_FILE="$WORKDIR/status"
+RUNNER_FILE="$WORKDIR/runner.sh"
+RUN_ID="$(date +%Y%m%d-%H%M%S)"
 
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
 URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
-SELF_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
-RUN_ID="$(date +%Y%m%d-%H%M%S)"
-
+# =====================================================
+# BASIC
+# =====================================================
 require_root() {
-  if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-    echo "❌ Harus dijalankan sebagai root. Contoh: sudo bash finish-install.sh"
-    exit 1
-  fi
+  [ "$(id -u)" -eq 0 ] || { echo "Run as root"; exit 1; }
 }
 
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
+have(){ command -v "$1" >/dev/null 2>&1; }
 
-apt_install_quiet() {
+apt_install(){
   export DEBIAN_FRONTEND=noninteractive
   apt-get -yq update >/dev/null 2>&1 || true
   apt-get -yq install "$@" >/dev/null 2>&1
 }
 
-ensure_screen() {
-  if have_cmd screen; then return 0; fi
-  apt_install_quiet screen
-  have_cmd screen
+ensure_screen(){
+  have screen || apt_install screen
 }
 
-make_runner() {
-  mkdir -p "$WORKDIR"
-  cat > "$WORKDIR/runner.sh" <<'RUNNER'
+# =====================================================
+# CREATE RUNNER
+# =====================================================
+make_runner(){
+
+mkdir -p "$WORKDIR"
+
+cat > "$RUNNER_FILE" <<'RUNNER'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
 LOGFILE="/var/log/finish_install.log"
 WORKDIR="/root/finish_install"
+STATUS_FILE="$WORKDIR/status"
 
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
 URL_RESET="https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh"
 
-SELF_PATH="${SELF_PATH:-}"
 RUN_ID="${RUN_ID:-unknown}"
 
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
+log(){ echo "RUN_ID=$RUN_ID $1 $(date -Is)"; }
 
-apt_install_quiet() {
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get -yq update >/dev/null 2>&1 || true
-  apt-get -yq install "$@" >/dev/null 2>&1
+fail(){
+  echo FAIL > "$STATUS_FILE"
+  log "FAIL"
+  exit 1
 }
 
-need_cmds() {
-  apt_install_quiet ca-certificates wget curl coreutils util-linux grep sed gawk e2fsprogs >/dev/null 2>&1 || true
+success(){
+  echo DONE > "$STATUS_FILE"
+  log "DONE"
 }
 
-log_mark() {
-  echo "RUN_ID=${RUN_ID} $1: $(date -Is)"
+trap fail ERR
+
+# =====================================================
+# DETECT ACTIVE SSH SESSION
+# =====================================================
+current_ssh_ip(){
+  echo "${SSH_CLIENT:-}" | awk '{print $1}'
 }
 
-# Fungsi Universal untuk Membuka Semua Kunci Sebelum Mengedit
-unlock_critical_files() {
-  echo "[+] Membuka kunci (unlock) semua file target jika terkunci..."
-  
-  local files=(
-    "/etc/ssh/sshd_config"
-    "/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
-    "/etc/ssh/sshd_config.d/by_najm.conf"
-    "/root/.profile"
-    "/root/.bashrc"
-    "/etc/passwd"
-    "/etc/shadow"
-    "/etc/group"
-    "/etc/gshadow"
-    "/etc/sudoers"
+ssh_session_active(){
+  local ip
+  ip=$(current_ssh_ip)
+  [ -z "$ip" ] && return 1
+
+  ss -tnp 2>/dev/null | grep -q "$ip:.*sshd" && return 0
+  who | grep -q "$ip" && return 0
+  return 1
+}
+
+safe_restart_ssh(){
+
+  if ssh_session_active; then
+    echo "[SAFE] Active SSH detected — skip restart"
+    return 0
+  fi
+
+  echo "[SAFE] Restarting SSH service"
+  systemctl reload ssh 2>/dev/null || true
+  systemctl reload sshd 2>/dev/null || true
+  systemctl restart ssh 2>/dev/null || true
+  systemctl restart sshd 2>/dev/null || true
+  service ssh restart 2>/dev/null || true
+  service sshd restart 2>/dev/null || true
+}
+
+# =====================================================
+# ENSURE PACKAGES
+# =====================================================
+apt-get -yq update >/dev/null 2>&1 || true
+apt-get -yq install wget curl e2fsprogs iproute2 >/dev/null 2>&1 || true
+
+# =====================================================
+# UNIVERSAL UNLOCK
+# =====================================================
+unlock_all(){
+
+  chattr -R -i -a -u -e /etc/ssh 2>/dev/null || true
+
+  FILES=(
+    /etc/ssh/sshd_config
+    /etc/ssh/sshd_config.d/01-permitrootlogin.conf
+    /etc/ssh/sshd_config.d/by_najm.conf
+    /root/.profile
+    /root/.bashrc
+    /etc/passwd
+    /etc/shadow
+    /etc/group
+    /etc/gshadow
+    /etc/sudoers
   )
 
-  # Unlock direktori SSH
-  chattr -R -i -a -u -e /etc/ssh >/dev/null 2>&1 || true
-
-  # Membuka atribut (immutable) dan memberikan izin tulis standar
-  for f in "${files[@]}"; do
-    if [ -e "$f" ]; then
-      chattr -i -a -u -e "$f" >/dev/null 2>&1 || true
-      chmod 644 "$f" >/dev/null 2>&1 || true
-    fi
+  for f in "${FILES[@]}"; do
+    [ -e "$f" ] || continue
+    chattr -i -a -u -e "$f" 2>/dev/null || true
+    chmod u+rw "$f" 2>/dev/null || true
   done
 }
 
-run_like_manual() {
+# =====================================================
+# SAFE DOWNLOAD + EXEC
+# =====================================================
+run_script(){
+
   local url="$1"
   local file="$2"
 
   cd "$WORKDIR"
-  rm -f "$file" >/dev/null 2>&1 || true
+  rm -f "$file"
 
-  wget -q "$url"
-  sed -i 's/\r$//' "$file" >/dev/null 2>&1 || true
+  wget -q "$url" -O "$file" || fail
   chmod +x "$file"
 
-  "./$file"
+  unlock_all
+  bash "$file"
 }
 
-cleanup_all() {
-  rm -rf "$WORKDIR" >/dev/null 2>&1 || true
-  if [ -n "${SELF_PATH:-}" ] && [ -f "$SELF_PATH" ]; then
-    rm -f "$SELF_PATH" >/dev/null 2>&1 || true
-  fi
-}
+# =====================================================
+# MAIN EXECUTION
+# =====================================================
+exec >>"$LOGFILE" 2>&1
+mkdir -p "$WORKDIR"
+echo RUNNING > "$STATUS_FILE"
 
-main() {
-  exec >>"$LOGFILE" 2>&1
+log START
 
-  mkdir -p "$WORKDIR"
-  need_cmds
+unlock_all
+run_script "$URL_KUNCI" kunci-ssh.sh
 
-  log_mark "START"
+unlock_all
+run_script "$URL_UBAH" ubah-ssh.sh
+safe_restart_ssh
 
-  # 1) Buka kunci lalu jalankan script kunci SSH
-  unlock_critical_files
-  run_like_manual "$URL_KUNCI" "kunci-ssh.sh"
+unlock_all
+run_script "$URL_FIXP" fix-profile.sh
 
-  # 2) Buka kunci lagi lalu jalankan script ubah SSH
-  unlock_critical_files
-  run_like_manual "$URL_UBAH" "ubah-ssh.sh"
+unlock_all
+yes n | run_script "$URL_RESET" reset-user.sh
+safe_restart_ssh
 
-  # 3) Buka kunci lalu jalankan script perbaikan Profile
-  unlock_critical_files
-  run_like_manual "$URL_FIXP" "fix-profile.sh"
-
-  # 4) Buka kunci lalu jalankan reset user
-  unlock_critical_files
-  run_like_manual "$URL_RESET" "reset-user.sh"
-
-  # Memaksa sinkronisasi disk agar file log segera tersimpan (mencegah false-alarm gagal)
-  sync
-  log_mark "DONE"
-  cleanup_all
-}
-
-trap 'log_mark "FAIL"; exit 1' ERR
-main "$@"
+sync
+success
 RUNNER
-  chmod 700 "$WORKDIR/runner.sh"
+
+chmod 700 "$RUNNER_FILE"
 }
 
-start_in_screen_detached() {
-  mkdir -p "$WORKDIR"
-  touch "$LOGFILE" || true
-  chmod 600 "$LOGFILE" || true
-
-  if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-    screen -S "$SESSION_NAME" -X quit >/dev/null 2>&1 || true
-  fi
-
-  screen -dmS "$SESSION_NAME" bash -lc "SELF_PATH='$SELF_PATH' RUN_ID='$RUN_ID' bash '$WORKDIR/runner.sh'"
+# =====================================================
+# START SCREEN
+# =====================================================
+start_screen(){
+  screen -S "$SESSION_NAME" -X quit >/dev/null 2>&1 || true
+  screen -dmS "$SESSION_NAME" bash -lc "RUN_ID=$RUN_ID bash $RUNNER_FILE"
 }
 
-wait_with_spinner_until_done() {
-  local frames='-\|/'
-  local i=0
+# =====================================================
+# WAIT RESULT
+# =====================================================
+wait_result(){
 
-  printf "Sedang Proses Finish Install... "
+  echo -n "Sedang Proses Finish Install... "
+
+  TIMEOUT=900
+  ELAPSED=0
 
   while true; do
-    if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
-      printf "\rSedang Proses Finish Install... ✅ SUKSES.\n"
-      return 0
+
+    if [ -f "$STATUS_FILE" ]; then
+      case "$(cat "$STATUS_FILE")" in
+        DONE) echo "✅ SUKSES"; return 0 ;;
+        FAIL) echo "❌ GAGAL"; tail -n 60 "$LOGFILE"; return 1 ;;
+      esac
     fi
 
-    if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
-      printf "\rSedang Proses Finish Install... ❌ GAGAL.\n"
-      echo "Detail error cek log: $LOGFILE"
-      tail -n 50 "$LOGFILE" 2>/dev/null || true
-      return 1
-    fi
-
-    # Jika session screen berhenti, beri waktu tunggu 5 detik agar log selesai ditulis
-    if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-      for _ in {1..10}; do
-        sleep 0.5
-        if grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
-          printf "\rSedang Proses Finish Install... ✅ SUKSES.\n"
-          return 0
-        fi
-        if grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
-          printf "\rSedang Proses Finish Install... ❌ GAGAL.\n"
+    if ! screen -list | grep -q "$SESSION_NAME"; then
+        sleep 1
+        if [ ! -f "$STATUS_FILE" ]; then
+          echo "❌ GAGAL (runner crash)"
+          tail -n 60 "$LOGFILE"
           return 1
         fi
-      done
-      
-      printf "\rSedang Proses Finish Install... ❌ GAGAL (session berhenti abnormal).\n"
-      echo "Silakan cek log: $LOGFILE"
-      tail -n 50 "$LOGFILE" 2>/dev/null || true
-      return 1
     fi
 
-    printf "\rSedang Proses Finish Install... %c" "${frames:i%4:1}"
-    i=$((i+1))
-    sleep 0.2
+    sleep 1
+    ((ELAPSED++))
+
+    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+      echo "❌ TIMEOUT"
+      return 1
+    fi
   done
 }
 
-main() {
+# =====================================================
+# MAIN
+# =====================================================
+main(){
   require_root
-  if ! have_cmd apt-get; then
-    echo "❌ Sistem ini tidak menggunakan apt-get."
-    exit 1
-  fi
-
-  if ! ensure_screen; then
-    echo "❌ Gagal install/menemukan screen."
-    exit 1
-  fi
-
+  ensure_screen
   make_runner
-  start_in_screen_detached
-  wait_with_spinner_until_done
+  start_screen
+  wait_result
 }
 
 main "$@"
