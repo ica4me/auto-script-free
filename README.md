@@ -47,7 +47,7 @@ Tunggu proses selesai → VPS otomatis reboot.
 Login kembali ke VPS setelah reboot, lalu jalankan update:
 
 ```bash
-apt update && apt upgrade -y && apt install -y screen wget curl
+apt update && apt upgrade -y && apt install -y screen wget curl jq
 ```
 
 ---

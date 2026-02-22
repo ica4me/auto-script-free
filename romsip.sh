@@ -1,7 +1,25 @@
 #!/bin/bash
 
+# 1. Fungsi exit aman agar tidak menutup session SSH (khusus jika di-source)
+safe_exit() {
+    return "$1" 2>/dev/null || exit "$1"
+}
+
+# 2. Pengecekan dan Instalasi Paket yang Dibutuhkan
+echo "Memeriksa paket yang dibutuhkan (curl, jq)..."
+PACKAGES=""
+command -v curl >/dev/null 2>&1 || PACKAGES="$PACKAGES curl"
+command -v jq >/dev/null 2>&1 || PACKAGES="$PACKAGES jq"
+
+if [ -n "$PACKAGES" ]; then
+    echo "Menginstal paket yang kurang: $PACKAGES..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -yq >/dev/null 2>&1
+    apt-get install -yq $PACKAGES >/dev/null 2>&1
+fi
+
 # --- KONFIGURASI GITHUB ---
-GITHUB_TOKEN="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" # Masukkan Token GitHub kamu di sini
+GITHUB_TOKEN="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" # Ganti dengan token barumu nanti!
 REPO_OWNER="ica4me"
 REPO_NAME="auto-script-free"
 FILE_PATH="romsip"
@@ -12,46 +30,53 @@ IP_VPS=$(curl -4 -sS ifconfig.me)
 
 if [ -z "$IP_VPS" ]; then
     echo "❌ Gagal mendapatkan IP VPS. Cek koneksi internet."
-    exit 1
+    safe_exit 1
 fi
 
 echo "IP Publik: $IP_VPS"
 
-# Format teks yang akan ditambahkan
+# Format teks baru yang akan ditulis
 NEW_LINE="### admin 2099-12-31 $IP_VPS @VIP"
 
 # URL API GitHub
 API_URL="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/contents/$FILE_PATH"
 
-# 1. Mengambil data file dari GitHub (untuk mendapatkan SHA dan isi lama)
+# 3. Mengambil data file dari GitHub
 echo "Menghubungi GitHub API..."
 RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3+json" "$API_URL")
 
 SHA=$(echo "$RESPONSE" | jq -r .sha)
 
-if [ "$SHA" == "null" ]; then
+if [ "$SHA" == "null" ] || [ -z "$SHA" ]; then
     echo "❌ Error: File tidak ditemukan atau Token salah/kadaluarsa."
-    exit 1
+    safe_exit 1
 fi
 
-# 2. Decode isi file lama dari Base64
+# 4. Decode isi file lama dari Base64
 OLD_CONTENT=$(echo "$RESPONSE" | jq -r .content | base64 --decode)
 
-# Cek apakah IP sudah ada di dalam file agar tidak dobel
-if echo "$OLD_CONTENT" | grep -q "$IP_VPS"; then
-    echo "⚠️ IP $IP_VPS sudah terdaftar di dalam file romsip."
-    exit 0
+# Agar pencarian IP akurat (titik pada IP dibaca sbg titik, bukan wildcard)
+ESCAPED_IP=$(echo "$IP_VPS" | sed 's/\./\\./g')
+
+# 5. Logika Timpa (Replace) atau Tambah (Append)
+if echo "$OLD_CONTENT" | grep -qE "\b${ESCAPED_IP}\b"; then
+    echo "⚠️ IP $IP_VPS sudah terdaftar. Menimpa baris lama dengan pembaruan..."
+    # Menghapus sebaris penuh yang mengandung IP, dan menggantinya dengan NEW_LINE
+    NEW_CONTENT=$(echo "$OLD_CONTENT" | sed -E "s/.*\\b${ESCAPED_IP}\\b.*/${NEW_LINE}/g")
+    COMMIT_MSG="Update/Timpa IP $IP_VPS"
+else
+    echo "➕ IP $IP_VPS belum ada. Menambahkan baris baru..."
+    NEW_CONTENT=$(printf "%s\n%s" "$OLD_CONTENT" "$NEW_LINE")
+    COMMIT_MSG="Auto-add IP $IP_VPS"
 fi
 
-# 3. Gabungkan isi lama dengan baris baru, lalu encode ke Base64
-NEW_CONTENT=$(printf "%s\n%s" "$OLD_CONTENT" "$NEW_LINE")
-# Harus tanpa newline agar JSON valid saat dikirim
-NEW_CONTENT_B64=$(echo -n "$NEW_CONTENT" | base64 | tr -d '\n')
+# 6. Encode kembali ke Base64 (menggunakan -w 0 agar tidak ada pemisahan baris yang merusak JSON)
+NEW_CONTENT_B64=$(echo -n "$NEW_CONTENT" | base64 -w 0)
 
-# 4. Kirim pembaruan ke GitHub (Update File)
-echo "Menyimpan baris baru ke GitHub..."
+# 7. Kirim pembaruan ke GitHub
+echo "Menyimpan perubahan ke GitHub..."
 JSON_PAYLOAD=$(jq -n \
-  --arg msg "Auto-add IP $IP_VPS" \
+  --arg msg "$COMMIT_MSG" \
   --arg content "$NEW_CONTENT_B64" \
   --arg sha "$SHA" \
   --arg branch "$BRANCH" \
@@ -63,10 +88,13 @@ UPDATE_RESPONSE=$(curl -s -X PUT \
   -d "$JSON_PAYLOAD" \
   "$API_URL")
 
-# Cek apakah berhasil
-if echo "$UPDATE_RESPONSE" | jq -e .content.sha >/dev/null; then
-    echo "✅ SUKSES! IP $IP_VPS telah ditambahkan ke GitHub."
+# 8. Cek apakah berhasil
+if echo "$UPDATE_RESPONSE" | jq -e .content.sha >/dev/null 2>&1; then
+    echo "✅ SUKSES! File berhasil diupdate di GitHub."
 else
     echo "❌ Gagal mengupdate file. Pesan error dari GitHub:"
     echo "$UPDATE_RESPONSE" | jq -r .message
+    safe_exit 1
 fi
+
+safe_exit 0
