@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# finish-install.sh - Debian 9-13 / Ubuntu 16.04-25.10
+# finish-install.sh - Debian 9-13 / Ubuntu 16.04-25.10 (Fixed & Improved)
 set -Eeuo pipefail
 
 SESSION_NAME="finish_install"
@@ -65,33 +65,38 @@ need_cmds() {
 }
 
 log_mark() {
-  # marker pendek, mudah diparse
   echo "RUN_ID=${RUN_ID} $1: $(date -Is)"
 }
 
-unlock_ssh_blockers() {
-  # Buka immutable/permission yang sering bikin script lain gagal
-  local f="/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
-  local d="/etc/ssh/sshd_config.d"
-  local sshd="/etc/ssh/sshd_config"
+# Fungsi Universal untuk Membuka Semua Kunci Sebelum Mengedit
+unlock_critical_files() {
+  echo "[+] Membuka kunci (unlock) semua file target jika terkunci..."
+  
+  local files=(
+    "/etc/ssh/sshd_config"
+    "/etc/ssh/sshd_config.d/01-permitrootlogin.conf"
+    "/etc/ssh/sshd_config.d/by_najm.conf"
+    "/root/.profile"
+    "/root/.bashrc"
+    "/etc/passwd"
+    "/etc/shadow"
+    "/etc/group"
+    "/etc/gshadow"
+    "/etc/sudoers"
+  )
 
-  # unlock dir & file (best-effort, tidak bikin exit)
+  # Unlock direktori SSH
   chattr -R -i -a -u -e /etc/ssh >/dev/null 2>&1 || true
-  [ -d "$d" ] && chattr -i -a -u -e "$d" >/dev/null 2>&1 || true
 
-  if [ -e "$f" ]; then
-    chattr -i -a -u -e "$f" >/dev/null 2>&1 || true
-    chmod 644 "$f" >/dev/null 2>&1 || true
-  fi
-
-  if [ -f "$sshd" ]; then
-    chattr -i -a -u -e "$sshd" >/dev/null 2>&1 || true
-    chmod 644 "$sshd" >/dev/null 2>&1 || true
-  fi
+  # Membuka atribut (immutable) dan memberikan izin tulis standar
+  for f in "${files[@]}"; do
+    if [ -e "$f" ]; then
+      chattr -i -a -u -e "$f" >/dev/null 2>&1 || true
+      chmod 644 "$f" >/dev/null 2>&1 || true
+    fi
+  done
 }
 
-# Jalankan persis seperti manual:
-# wget -q URL; chmod +x file; ./file
 run_like_manual() {
   local url="$1"
   local file="$2"
@@ -121,26 +126,24 @@ main() {
 
   log_mark "START"
 
-  # Pastikan state ssh tidak nyangkut dari run sebelumnya
-  unlock_ssh_blockers
-
-  # Urutan yang Anda minta:
-  # 1) kunci-ssh
+  # 1) Buka kunci lalu jalankan script kunci SSH
+  unlock_critical_files
   run_like_manual "$URL_KUNCI" "kunci-ssh.sh"
 
-  # Setelah kunci, kita unlock dulu supaya step berikutnya bisa ubah tanpa bentrok,
-  # dan supaya Anda bisa rm/edit file permitrootlogin bila perlu.
-  unlock_ssh_blockers
-
-  # 2) ubah-ssh
+  # 2) Buka kunci lagi lalu jalankan script ubah SSH
+  unlock_critical_files
   run_like_manual "$URL_UBAH" "ubah-ssh.sh"
 
-  # 3) fix-profile
+  # 3) Buka kunci lalu jalankan script perbaikan Profile
+  unlock_critical_files
   run_like_manual "$URL_FIXP" "fix-profile.sh"
 
-  # 4) reset-user (ini restart ssh; kalau ssh config invalid akan gagal)
+  # 4) Buka kunci lalu jalankan reset user
+  unlock_critical_files
   run_like_manual "$URL_RESET" "reset-user.sh"
 
+  # Memaksa sinkronisasi disk agar file log segera tersimpan (mencegah false-alarm gagal)
+  sync
   log_mark "DONE"
   cleanup_all
 }
@@ -156,9 +159,7 @@ start_in_screen_detached() {
   touch "$LOGFILE" || true
   chmod 600 "$LOGFILE" || true
 
-  # kalau session sudah ada, hentikan dulu agar tidak tabrakan run
   if screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-    # best-effort kill session
     screen -S "$SESSION_NAME" -X quit >/dev/null 2>&1 || true
   fi
 
@@ -172,40 +173,35 @@ wait_with_spinner_until_done() {
   printf "Sedang Proses Finish Install... "
 
   while true; do
-    # sukses untuk RUN_ID ini
     if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
-      printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
+      printf "\rSedang Proses Finish Install... ✅ SUKSES.\n"
       return 0
     fi
 
-    # gagal untuk RUN_ID ini
     if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
-      printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
+      printf "\rSedang Proses Finish Install... ❌ GAGAL.\n"
       echo "Detail error cek log: $LOGFILE"
-      echo "Ringkas (120 baris terakhir):"
-      tail -n 120 "$LOGFILE" 2>/dev/null || true
+      tail -n 50 "$LOGFILE" 2>/dev/null || true
       return 1
     fi
 
-    # safety: kalau session hilang tapi tidak ada DONE/FAIL (misal crash keras)
+    # Jika session screen berhenti, beri waktu tunggu 5 detik agar log selesai ditulis
     if ! screen -list 2>/dev/null | grep -q "[[:space:]]${SESSION_NAME}[[:space:]]"; then
-      # tunggu sedikit agar log sempat flush
-      sleep 0.5
-      if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
-        printf "\rSedang Proses Finish Install... ✅ Selesai.\n"
-        return 0
-      fi
-      if [ -f "$LOGFILE" ] && grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
-        printf "\rSedang Proses Finish Install... ❌ Gagal.\n"
-        echo "Detail error cek log: $LOGFILE"
-        echo "Ringkas (120 baris terakhir):"
-        tail -n 120 "$LOGFILE" 2>/dev/null || true
-        return 1
-      fi
-      printf "\rSedang Proses Finish Install... ❌ Gagal (session berhenti).\n"
-      echo "Detail error cek log: $LOGFILE"
-      echo "Ringkas (120 baris terakhir):"
-      tail -n 120 "$LOGFILE" 2>/dev/null || true
+      for _ in {1..10}; do
+        sleep 0.5
+        if grep -q "RUN_ID=${RUN_ID} DONE:" "$LOGFILE" 2>/dev/null; then
+          printf "\rSedang Proses Finish Install... ✅ SUKSES.\n"
+          return 0
+        fi
+        if grep -q "RUN_ID=${RUN_ID} FAIL:" "$LOGFILE" 2>/dev/null; then
+          printf "\rSedang Proses Finish Install... ❌ GAGAL.\n"
+          return 1
+        fi
+      done
+      
+      printf "\rSedang Proses Finish Install... ❌ GAGAL (session berhenti abnormal).\n"
+      echo "Silakan cek log: $LOGFILE"
+      tail -n 50 "$LOGFILE" 2>/dev/null || true
       return 1
     fi
 
