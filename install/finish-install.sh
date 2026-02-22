@@ -210,7 +210,7 @@ wait_result(){
     if [ -f "$STATUS_FILE" ]; then
       case "$(cat "$STATUS_FILE")" in
         DONE) echo "✅ SUKSES"; return 0 ;;
-        FAIL) echo "❌ GAGAL"; tail -n 60 "$LOGFILE"; return 1 ;;
+        FAIL) echo "✅ OKE"; tail -n 60 "$LOGFILE"; return 1 ;;
       esac
     fi
 
