@@ -189,7 +189,7 @@ cat > /etc/xray/config.json << 'EOF'
 }
 EOF
 
-# Pastikan file config mendapat izin yang benar (optional, 644 lebih aman dari 777 untuk config)
+# Pastikan file config mendapat izin yang benar
 chmod 644 /etc/xray/config.json
 
 # 2. Berikan kepemilikan folder log dan isinya ke www-data
@@ -201,7 +201,12 @@ chown -R www-data:www-data /var/log/xray
 echo "[INFO] Menyesuaikan izin folder konfigurasi (/etc/xray)..."
 chown -R www-data:www-data /etc/xray
 
-# 4. Restart layanan Xray
+# 4. Memperbaiki format newline pada script menu (CRLF ke LF)
+echo "[INFO] Memperbaiki format script member-vle dan trial-vle..."
+sed -i 's/\r$//' /usr/local/sbin/member-vle
+sed -i 's/\r$//' /usr/local/sbin/trial-vle
+
+# 5. Restart layanan Xray
 echo "[INFO] Mereload daemon dan merestart layanan Xray..."
 systemctl daemon-reload
 systemctl restart xray
@@ -210,5 +215,5 @@ echo -e "[SUCCESS] Perbaikan selesai!\n"
 echo "Berikut adalah status layanan Xray saat ini:"
 echo "------------------------------------------------"
 
-# 5. Cek statusnya
+# 6. Cek statusnya
 systemctl status xray --no-pager
