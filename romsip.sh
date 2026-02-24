@@ -19,7 +19,7 @@ if [ -n "$PACKAGES" ]; then
 fi
 
 # --- KONFIGURASI GITHUB ---
-GITHUB_TOKEN="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" # Ganti dengan token barumu nanti!
+GITHUB_TOKEN="ganti_xxxxxx-xxxx" # Ganti dengan token barumu nanti!
 REPO_OWNER="ica4me"
 REPO_NAME="auto-script-free"
 FILE_PATH="romsip"

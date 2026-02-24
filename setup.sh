@@ -494,7 +494,10 @@ rm vps-oke.sh
 sleep 3
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-dropbear.sh && chmod +x fix-dropbear.sh && ./fix-dropbear.sh
 fix-dropbear.sh
-
+sleep 3
+bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/add-tele-id.sh | bash'
+sleep 3
+bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/install-ssh-guardian.sh | bash'
 # Perbaiki script m-reboot
 sed -i 's/\r$//' /usr/local/sbin/m-reboot
 

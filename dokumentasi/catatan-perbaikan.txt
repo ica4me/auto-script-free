@@ -1,0 +1,106 @@
+add-tro, add-vle, dan auto-kill
+add-vme, add-ssr, backer, add-ssh & add-nob, autoreboot & autobackup, 
+
+bot-notif, ceklim, cek_vps_online, dan backup
+cek-ssr, cek-tro, cek-loginvl, cekudp,backup_action
+
+change-domain
+
+change-vless-qouta
+
+change-vmess-qouta
+
+check-tro
+
+check-vle
+
+check-vme
+
+clearlog
+
+cf , cek-vme, clearcache
+
+del-ssr, del-tro, del-vle, del-vme
+del-ssh & del-nob
+delet-cache-file
+
+del-bot-notif, create-bot-notif, delexp
+
+ganti-ip-trojan
+
+ganti-ip-vless
+
+ganti-ip-vmess
+
+hapus-bot
+
+fixcert, expsc, Factreset, ipbot, ganti-ip-ssh, fixhap, 
+
+lock, lock-tr, lock-vl, lock-vm, limit-on-off, main_menu, 
+
+killtrial, limitssh-on-off, limitspeed, limitssh-ip
+
+member-ssr & member-tro, m-bot, m-dor, 
+
+m-bckp vs m-bkp vs mbot, member-vle, member-ssh, member-vme
+
+quota, recover, recover-tr, recover-vl, recover-vm
+
+regisip, neo, mullog, m-xray & prot
+
+renew-ssh, renew-ssr, renew-tro, renew-vle, renew-vme
+
+restart-bot, repip, reset, renew-nob, restart_xray
+
+tendang, run, sd, trial-nob, stop-bot
+
+restore, trial-ssh & trial-ssr,
+
+trial-tro, trial-vle, dan trial-vme
+unlock, unlock-tr, unlock-vl, unlock-vm
+trojan-qouta, user-ssh
+
+member-vle
+trial-vle 
+================================================================================
+================================================================================
+================================================================================
+Tugas Analisis File Kode dari 10 file ini
+
+Baca semua file yang diberikan secara menyeluruh, satu per satu hingga selesai, tanpa melewatkan bagian apa pun.
+
+Pastikan seluruh isi kode dari setiap file sudah terbaca sepenuhnya sebelum mulai melakukan analisis.
+
+Setelah semua file selesai dibaca, lakukan analisis menyeluruh terhadap keterkaitan, konsistensi, dan kebutuhan penyesuaian antar file.
+
+Tujuan Analisis
+
+Identifikasi apakah masih ada bagian yang perlu disesuaikan, diperbaiki, atau diselaraskan.
+
+Sebutkan file mana saja yang memerlukan penyesuaian dan jelaskan alasannya secara spesifik.
+
+Pertimbangkan struktur, dependensi, logika, dan konsistensi implementasi antar file.
+
+Ketentuan Khusus
+
+Abaikan tanda kurung kurawal penutup } di bagian paling akhir semua file (jika ada ketidaksesuaian atau kelebihan).
+
+Simpan hasil pemahaman struktur dan isi kode sebagai referensi untuk analisis lanjutan.
+
+Output yang Diharapkan
+
+Daftar temuan per file.
+
+Penjelasan masalah atau ketidaksesuaian (jika ada).
+
+Rekomendasi file mana yang harus penyesuaian.
+================================================================================
+================================================================================
+berikan full code perbaikan final dari :
+jika ada permeriksaan license ip, bypass license ip(jika sudah ada licensy lokal atau mandiri biarkan).
+
+==========
+CATATAN PERBAIKAN TAMBAHAN
+buatkan service custom yang memeriksa stsus service ssh dan sshd setiap 5 detik jika tidak aktive restart, jika failed send ke telegram notifikasi.
+
+Akun shdowshock konek tapi tidak bisa akses internet client nya, link pembuatan kurang host, link akun belum di kirim ke telgram notif pembuatan akun
