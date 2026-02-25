@@ -1,0 +1,11 @@
+cat <<'EOF' > /usr/local/bin/sudo && chmod +x /usr/local/bin/sudo
+#!/bin/sh
+if command -v /usr/bin/sudo >/dev/null 2>&1; then
+    exec /usr/bin/sudo "$@"
+fi
+if [ "$(id -u)" -eq 0 ]; then
+    exec "$@"
+fi
+echo "sudo not installed and you are not root" >&2
+exit 1
+EOF

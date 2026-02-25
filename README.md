@@ -32,10 +32,10 @@
 
 ## ✅ Urutan Instalasi (Wajib Ikuti)
 
-### 0) Reinstall VPS ke Debian 11 (Opsional)
+### 0) Reinstall VPS ke Debian 12 (Opsional)
 
 ```bash
-wget https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && chmod +x reinstall.sh && bash reinstall.sh debian 11 && reboot
+wget https://raw.githubusercontent.com/bin456789/reinstall/main/reinstall.sh && chmod +x reinstall.sh && bash reinstall.sh debian 12 && reboot
 ```
 
 Tunggu proses selesai → VPS otomatis reboot.
@@ -47,7 +47,24 @@ Tunggu proses selesai → VPS otomatis reboot.
 Login kembali ke VPS setelah reboot, lalu jalankan update:
 
 ```bash
-apt update && apt upgrade -y && apt install -y screen wget curl jq
+sudo apt update && sudo apt upgrade -y && sudo apt install -y screen wget curl jq
+```
+
+Wajib perbaiki Error -bash: sudo: command not found
+kalau Tidak proses Install Gagal
+
+```bash
+cat <<'EOF' > /usr/local/bin/sudo && chmod +x /usr/local/bin/sudo
+#!/bin/sh
+if command -v /usr/bin/sudo >/dev/null 2>&1; then
+    exec /usr/bin/sudo "$@"
+fi
+if [ "$(id -u)" -eq 0 ]; then
+    exec "$@"
+fi
+echo "sudo not installed and you are not root" >&2
+exit 1
+EOF
 ```
 
 ---

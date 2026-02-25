@@ -1,67 +1,3 @@
-add-tro, add-vle, dan auto-kill
-add-vme, add-ssr, backer, add-ssh & add-nob, autoreboot & autobackup, 
-
-bot-notif, ceklim, cek_vps_online, dan backup
-cek-ssr, cek-tro, cek-loginvl, cekudp,backup_action
-
-change-domain
-
-change-vless-qouta
-
-change-vmess-qouta
-
-check-tro
-
-check-vle
-
-check-vme
-
-clearlog
-
-cf , cek-vme, clearcache
-
-del-ssr, del-tro, del-vle, del-vme
-del-ssh & del-nob
-delet-cache-file
-
-del-bot-notif, create-bot-notif, delexp
-
-ganti-ip-trojan
-
-ganti-ip-vless
-
-ganti-ip-vmess
-
-hapus-bot
-
-fixcert, expsc, Factreset, ipbot, ganti-ip-ssh, fixhap, 
-
-lock, lock-tr, lock-vl, lock-vm, limit-on-off, main_menu, 
-
-killtrial, limitssh-on-off, limitspeed, limitssh-ip
-
-member-ssr & member-tro, m-bot, m-dor, 
-
-m-bckp vs m-bkp vs mbot, member-vle, member-ssh, member-vme
-
-quota, recover, recover-tr, recover-vl, recover-vm
-
-regisip, neo, mullog, m-xray & prot
-
-renew-ssh, renew-ssr, renew-tro, renew-vle, renew-vme
-
-restart-bot, repip, reset, renew-nob, restart_xray
-
-tendang, run, sd, trial-nob, stop-bot
-
-restore, trial-ssh & trial-ssr,
-
-trial-tro, trial-vle, dan trial-vme
-unlock, unlock-tr, unlock-vl, unlock-vm
-trojan-qouta, user-ssh
-
-member-vle
-trial-vle 
 ================================================================================
 ================================================================================
 ================================================================================
@@ -104,3 +40,199 @@ CATATAN PERBAIKAN TAMBAHAN
 buatkan service custom yang memeriksa stsus service ssh dan sshd setiap 5 detik jika tidak aktive restart, jika failed send ke telegram notifikasi.
 
 Akun shdowshock konek tapi tidak bisa akses internet client nya, link pembuatan kurang host, link akun belum di kirim ke telgram notif pembuatan akun
+
+
+audit semuanya dan analisa file mana saja yang harus di sesuaikan 
+lalu berikan roadmap perbaikan sesuai perbaikan perbaikan sebelumnya
+================================================================================
+✅ Selesai / Done
+⏳ Belum selesai / Pending
+⏭ Skip / Lewati
+🔄 Progress / Sedang dikerjakan
+================================================================================
+1) Keluarga VLESS (8)
+add-vle ✅
+change-vless-qouta ⏭
+check-vle ✅
+del-vle ✅
+ganti-ip-vless ⏭
+lock-vl ✅
+member-vle ⏭
+recover-vl ✅
+
+
+2) Keluarga VMESS (9)
+add-vme ✅
+cek-vme ⏭
+change-vmess-qouta ⏭
+check-vme ✅
+del-vme ✅
+ganti-ip-vmess ⏭
+lock-vm ✅
+member-vme ⏭
+recover-vm ✅
+
+3) Keluarga Trojan (10)
+add-tro ✅
+cek-tro ⏭
+check-tro ✅
+del-tro ✅
+ganti-ip-trojan ⏭
+lock-tr ✅
+member-tro ⏭
+recover-tr ✅
+trojan-qouta ⏭
+unlock-tr ✅
+
+4) Keluarga SSH (11)
+add-ssh ✅
+cekssh ⏭
+del-ssh ✅
+ganti-ip-ssh ⏭
+limitssh-ip ⏭
+limitssh-on-off ⏭
+member-ssh ⏭
+renew-ssh ✅
+trial-ssh ✅
+user-ssh ⏭
+warning ⏭
+
+5) Keluarga SSR (7)
+add-ssr ✅
+cek-ssr ⏭
+del-ssr ✅
+member-ssr ⏭
+renew-ssr ⏭
+trial-ssr ✅
+m-ssr ⏭
+# new file
+recover-ssr
+unlock-ssr
+lock-ssr
+check-ssr
+
+6) Keluarga Noobz / NOB (5)
+add-nob ✅
+del-nob ✅
+renew-nob ✅
+trial-nob ✅
+m-noobz ✅
+
+7) Operasi Akun Lintas Protokol (create/renew/trial/lock/unlock/recover) (18)
+renew-tro ✅
+renew-vle ✅
+renew-vme ✅
+trial-tro ✅
+trial-vle ✅
+trial-vme ✅
+lock ⏭
+unlock ⏭
+unlock-vl ✅
+unlock-vm ✅
+recover (SSH) ✅
+delexp ✅
+killtrial ✅
+tendang ✅
+quota ✅
+ceklim ⏭
+cek-loginvl ⏭
+limit-on-off ⏭
+
+8) Bot / Telegram / Notifikasi (12)
+add-bot-notif ⏭
+add-bot-notif-limit ⏭
+add-ip-bot ⏭
+bot-notif ⏭
+create-bot-notif ⏭
+del-bot-notif ✅
+hapus-bot ✅
+ipbot ⏭
+mbot ✅
+restart-bot ⏭
+stop-bot ⏭
+m-bot ⏭
+
+9) Backup / Restore (8)
+autobackup ⏭
+backup ✅
+backup_action ✅
+backer ✅
+m-bckp ✅
+m-bkp ✅
+restore ⏭
+restorepot ✅
+
+10) Menu / Navigasi Panel (15)
+menu ⏭
+menu-zi ⏭
+main_menu ⏭
+m-panel ⏭
+m-xray ⏭
+m-ssh ⏭
+m-tro ⏭
+m-reboot ⏭
+m-rebuild ⏭
+m-ftr ⏭
+m-dor ⏭
+about ⏭
+welcome ⏭
+neo (neofetch) ⏭
+prot ⏭
+ 
+11) System / Maintenance / Utilitas (25)
+Factreset ✅
+auto-kill ⏭
+autoreboot ⏭
+cek_vps_online ⏭
+cekudp ⏭
+cf ⏭
+change-domain ⏭
+clearcache ⏭
+clearlog ⏭
+delet-cache-file ⏭
+expsc ⏭
+fixcert ⏭
+fixhap ⏭
+limitspeed ⏭
+mullog ⏭
+regisip ⏭
+repip ⏭
+reset ⏭
+restart_xray ⏭
+run ⏭
+sd ✅
+speedtest (binary ELF) ⏭
+update-dis ⏭
+update-script ⏭
+xp ✅
+
+
+
+==========WAJIB XRAY
+PRIORITAS 1: Script Pembuat & Penghapus Akun (CRUD)
+yang bersentuhan langsung dengan /etc/xray/config.json
+
+===Keluarga VLESS===
+add-vle, del-vle
+
+===Keluarga VMESS===
+add-vme, del-vme
+
+===Keluarga Trojan===
+add-tro, del-tro
+
+===Keluarga SSR===
+add-ssr, del-ssr
+
+===Keluarga Trial Xray===
+trial-vle, trial-vme, trial-tro, trial-ssr ✅
+
+
+PRIORITAS 2: Auto-Cleaner / Cronjob (Sangat Kritis) ✅
+xp, delexp, killtrial
+
+PRIORITAS 3: Lock, Unlock, dan Recover ❌
+lock-vl, lock-vm, lock-tr, unlock-vl, unlock-vm, unlock-tr, recover-vl (dsb.)
+
+PRIORITAS 4: Script Backup & Restore
+restore, restorepot, backup, backup_action
