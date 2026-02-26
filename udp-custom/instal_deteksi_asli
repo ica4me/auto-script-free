@@ -122,8 +122,8 @@ hentikan_service_non_whitelist() {
   systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
     if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
       echo "$service" >> "$LOG_FILE"
-      systemctl stop "$service" > /dev/null 2>&1
-      systemctl disable "$service" > /dev/null 2>&1
+      #systemctl stop "$service" > /dev/null 2>&1
+      #systemctl disable "$service" > /dev/null 2>&1
     fi
   done
 }
@@ -204,8 +204,8 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable --now "$SERVICE_NAME"
+#  systemctl daemon-reload
+#  systemctl enable --now "$SERVICE_NAME"
 }
 
 pasang_udp() {

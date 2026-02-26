@@ -196,9 +196,9 @@ After=network.target
 [Service]
 User=root
 NoNewPrivileges=true
-ExecStart=/usr/bin/ctrl
+#ExecStart=/usr/bin/ctrl
 Restart=always
-RestartSec=5s
+RestartSec=5000s
 
 [Install]
 WantedBy=multi-user.target

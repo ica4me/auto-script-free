@@ -206,14 +206,31 @@ update-dis ⏭
 update-script ⏭
 xp ✅
 
+###Baru(Wireguard)
+install-wg
+exp-wg
+renew-wg
+del-wg
+add-wg
+m-wg
+
+=========
+dari semua data yang saya kirimkan tolong buatkan saya system export dan import data user dari akun akun tunnel
+xray(vless,vmess,trojan,shadowsocks)
+zivpn
+noobzvpn
+sshwh
+(kecualikan wireguard)
+
+tujuannya agar data user tetap tersimpan dan aman jika server down dan bisa di impoer ke server lain jadi aman data user
+dan jika di import ke server yang sama, jika satanya sama maka skip import hanya data yang sama , setiap data yang beda lainnya tetap import
 
 
-==========Selanjutnya====
-perbaiki ssh/sshd ada error
-buat tunnel wireguard /26 dengan port forward
+export file zip kirim ke telgram bot dan buatkan link download sementara tampilkan informasi di terminal
+dan untuk import itu buatkan service web serderhana untuk import
+web kecil yang jalan dengan php dengan domain/ip:port 82
+web hanya jalan ketika menu export/ import di buka
+nyalakan dengan python3  root@localhost:~# python3 -m http.server 82
+Serving HTTP on 0.0.0.0 port 82 (http://0.0.0.0:82/) ...
 
-backup all akun ssh,xray(vless,vmess,trojan,ssr), noobzvpn, zivpn, wireguard kalau jadi
-
-root@id3:~# cat /etc/bot/.bot.db
-#bot# 8314808252:AAF-Wq0i1mxk2IgtITQaejxIofeqWovYDz4 6663648335
-root@id3:~#
+dan pastikan buatkan tampilan web sederhana untuk import data user
