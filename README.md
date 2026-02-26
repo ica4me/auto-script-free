@@ -120,16 +120,16 @@ Penganti perintah (sed -i 's/\r$//' /usr/local/sbin/\*), sed tidak aman.
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-usr-local-sbin.sh | bash
 ```
 
-Fix Hproxy dan Nginx (Jika error: Ganti Let's Encrypt menjadi ZeroSSL)
-
-```bash
-wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/zerossl.sh | bash
-```
-
-Jika masih error jalankan ini (Fix Hproxy dan Nginx 2)
+Fix Hproxy dan Nginx
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
+```
+
+Jika masih error jalankan ini (Jika error: Ganti Let's Encrypt menjadi ZeroSSL)
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/zerossl.sh | bash
 ```
 
 Fix Xray Failed Start (Jika error)
