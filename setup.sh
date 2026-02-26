@@ -321,10 +321,10 @@ res10() {
 wget ${REPO}udp-zi && chmod +x udp-zi && ./udp-zi
 clear
 }
-res11() {
-wget ${REPO}install-nob && chmod +x install-nob && bash install-nob
-clear
-}
+#res11() {
+#wget ${REPO}install-nob && chmod +x install-nob && bash install-nob
+#clear
+#}
 
 if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
 echo -e "${green}Setup nginx For OS Is $(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')${NC}"
@@ -367,8 +367,8 @@ echo -e "DOWNLOAD ZIVPN"
 fun_bar 'res10'
 
 
-echo -e "DOWNLOAD NOOBZ"
-fun_bar 'res11'
+#echo -e "DOWNLOAD NOOBZ"
+#fun_bar 'res11'
 }
 function setup_ubuntu(){
 echo -e "PROCESS INSTALLED SSH & OPENVPN"
@@ -401,8 +401,8 @@ echo -e  "DOWNLOAD ZIVPN"
 res10
 
 
-echo -e  "DOWNLOAD NOOBZ"
-res11
+#echo -e  "DOWNLOAD NOOBZ"
+#res11
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max

