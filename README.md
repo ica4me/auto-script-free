@@ -90,12 +90,12 @@ wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/install
 Daftarkan IP
 
 ```bash
-sudo bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/autoadd_romsip | bash'
+sudo bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/romsip.sh | bash'
 ```
 
 ---
 
-### 4) Install Auto Script [setup.sh](http://setup.sh) (wajib)
+### 4) Install Auto Script [setup.sh](https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh) (wajib)
 
 ```bash
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/setup.sh

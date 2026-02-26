@@ -361,11 +361,11 @@ fun_bar 'res8'
 
 echo -e "DOWNLOAD UDP COSTUM"
 fun_bar 'res9'
-}
+
 
 echo -e "DOWNLOAD ZIVPN"
 fun_bar 'res10'
-}
+
 
 echo -e "DOWNLOAD NOOBZ"
 fun_bar 'res11'
@@ -395,11 +395,11 @@ res8
 
 echo -e  "DOWNLOAD UDP COSTUM"
 res9
-}
+
 
 echo -e  "DOWNLOAD ZIVPN"
 res10
-}
+
 
 echo -e  "DOWNLOAD NOOBZ"
 res11
@@ -445,23 +445,15 @@ sysctl -p >/dev/null 2>&1
 #key2
 CEKIP
 Installasi
-sudo systemctl disable systemd-resolved
-sudo systemctl stop systemd-resolved
-sudo rm /etc/resolv.config
-echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf
+sudo systemctl stop systemd-resolved 2>/dev/null || true
+sudo systemctl disable systemd-resolved 2>/dev/null || true
+sudo chattr -i /etc/resolv.conf 2>/dev/null || true
+sudo rm -f /etc/resolv.conf 2>/dev/null || true
+echo -e "nameserver 8.8.8.8\nnameserver 8.8.4.4" | sudo tee /etc/resolv.conf > /dev/null
 sudo chattr +i /etc/resolv.conf
-sudo systemctl start systemd-resolved
-sudo systemctl enable systemd-resolved
-#cat> /root/.profile << END
-#if [ "$BASH" ]; then
-#if [ -f ~/.bashrc ]; then
-#. ~/.bashrc
-#fi
-#fi
-#mesg n || true
-#clear
-#welcome
-#END
+sudo systemctl start systemd-resolved 2>/dev/null || true
+sudo systemctl enable systemd-resolved 2>/dev/null || true
+
 chmod 644 /root/.profile
 if [ -f "/root/log-install.txt" ]; then
 rm /root/log-install.txt > /dev/null 2>&1
@@ -519,7 +511,7 @@ wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/vps-oke.
 rm vps-oke.sh
 sleep 3
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-dropbear.sh && chmod +x fix-dropbear.sh && ./fix-dropbear.sh
-fix-dropbear.sh
+rm fix-dropbear.sh
 sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/add-tele-id.sh | bash'
 sleep 3
