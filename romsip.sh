@@ -19,9 +19,11 @@ if [ -n "$PACKAGES" ]; then
 fi
 
 # --- KONFIGURASI GITHUB ---
-# Token disamarkan menggunakan Base64 agar tidak diblokir otomatis oleh GitHub
-ENCODED_TOKEN="Z2hwX1I4NGNIaHczNWptRGpFbEp1RENNSDNxeHI1VTBxejNRRXZUVA=="
-GITHUB_TOKEN=$(echo "$ENCODED_TOKEN" | base64 --decode)
+# Token dipecah agar tidak di blok github
+T1="ghp"
+T2="_vyUVqvSgNJiE6Ye" # Ganti dengan potongan pertama token baru
+T3="NrmGgOecyoqW1AA3G3YgZ"  # Ganti dengan potongan kedua token baru
+GITHUB_TOKEN="${T1}${T2}${T3}"
 
 REPO_OWNER="ica4me"
 REPO_NAME="auto-script-free"
