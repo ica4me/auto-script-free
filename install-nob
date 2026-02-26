@@ -1,0 +1,142 @@
+#!/bin/bash
+# =========================================
+# AUTO INSTALLER NOOBZVPN SERVER (FINAL)
+# METODE: Official Git Clone & start-server FIX
+# =========================================
+clear
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e " ${GREEN}       MEMULAI INSTALASI NOOBZVPN        ${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# 1. Pastikan Git terinstall
+echo -e " [*] Memeriksa paket Git..."
+if ! command -v git >/dev/null 2>&1; then
+    apt-get update -y >/dev/null 2>&1
+    apt-get install git -y >/dev/null 2>&1
+fi
+
+# 2. Deteksi Arsitektur CPU
+MACHINE=$(uname -m)
+if [[ "$MACHINE" == "x86_64" || "$MACHINE" == "amd64" ]]; then
+    BINARY_ARCH="noobzvpns.x86-64"
+elif [[ "$MACHINE" == "aarch64" || "$MACHINE" == "arm64" ]]; then
+    BINARY_ARCH="noobzvpns.aarch64"
+else
+    echo -e " ${RED}Arsitektur CPU tidak didukung: $MACHINE${NC}"
+    exit 1
+fi
+echo -e " [*] Arsitektur Terdeteksi: $MACHINE ($BINARY_ARCH)"
+
+# 3. Menyiapkan Direktori Target
+echo -e " [*] Menyiapkan direktori sistem..."
+mkdir -p /etc/noobzvpns
+mkdir -p /usr/bin
+
+# 4. Cloning Repositori Resmi
+echo -e " [*] Mengunduh Source dari Noobz-ID Github..."
+cd /tmp
+rm -rf noobzvpns
+git clone https://github.com/noobz-id/noobzvpns.git >/dev/null 2>&1
+
+# Pindahkan file biner ke sistem
+if [[ -f "/tmp/noobzvpns/$BINARY_ARCH" ]]; then
+    cp "/tmp/noobzvpns/$BINARY_ARCH" /usr/bin/noobzvpns
+    chmod +x /usr/bin/noobzvpns
+    echo -e " ${GREEN}✅ Binary aplikasi berhasil dipasang!${NC}"
+else
+    echo -e " ${RED}❌ Gagal cloning dari Github. Cek koneksi internet Anda!${NC}"
+    rm -rf /tmp/noobzvpns
+    exit 1
+fi
+
+# 5. Generate Sertifikat SSL Lokal (.pem)
+echo -e " [*] Membuat Sertifikat SSL (.pem)..."
+openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
+    -subj "/C=ID/ST=Jakarta/L=Jakarta/O=Noobz/OU=Noobz/CN=NoobzVPN" \
+    -keyout /etc/noobzvpns/key.pem -out /etc/noobzvpns/cert.pem >/dev/null 2>&1
+
+chmod 600 /etc/noobzvpns/cert.pem
+chmod 600 /etc/noobzvpns/key.pem
+
+# 6. Membuat Konfigurasi TOML Default
+echo -e " [*] Membuat Konfigurasi TOML (Port 8080 & 8443)..."
+cat > /etc/noobzvpns/config.toml <<-EOF
+[tcp_plain]
+local_host = ["8080"]
+
+[tcp_ssl]
+local_host = ["8443"]
+tls_version = "AUTO"
+key_pem = "/etc/noobzvpns/key.pem"
+cert_pem = "/etc/noobzvpns/cert.pem"
+
+[client]
+ip_version = "AUTO"
+tcp_initial_timeout = 30
+resolv_conf = "/etc/resolv.conf"
+identifier = "noobz-id.github.io"
+banner = "Welcome to NAJM TUNNEL NoobzVPN"
+tcp_http_response = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+
+[remote]
+tcp_connect_timeout = 30
+tcp_idle_timeout = 900
+udp_connect_timeout = 30
+udp_idle_timeout = 60
+udp_dns_timeout = 10
+
+[database]
+database_monitor_timer = 30
+device_timeout = 5
+
+[runtime]
+worker_threads = 0
+EOF
+
+# 7. Membuat Systemd Service (FIXED start-server)
+echo -e " [*] Membuat Systemd Service..."
+cat > /etc/systemd/system/noobzvpns.service <<-EOF
+[Unit]
+Description=NoobzVPN Server Custom
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+User=root
+Type=simple
+WorkingDirectory=/etc/noobzvpns
+ExecStart=/usr/bin/noobzvpns start-server
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 8. Start, Bersihkan Sampah, & Cek Status
+echo -e " [*] Menyalakan Layanan NoobzVPN..."
+rm -rf /tmp/noobzvpns
+systemctl daemon-reload
+systemctl enable noobzvpns >/dev/null 2>&1
+systemctl restart noobzvpns >/dev/null 2>&1
+
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+if systemctl is-active --quiet noobzvpns; then
+    echo -e " ${GREEN}✅ NOOBZVPN BERHASIL DIINSTAL & AKTIF!${NC}"
+    echo -e "    Port TCP Std : 8080"
+    echo -e "    Port TCP SSL : 8443"
+else
+    echo -e " ${RED}❌ INSTALASI SELESAI, TAPI SERVICE GAGAL START.${NC}"
+    echo -e "    Gunakan: journalctl -u noobzvpns -n 20 untuk cek error."
+fi
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+sleep 3
+m-noobz

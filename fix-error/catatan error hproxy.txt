@@ -1,0 +1,34 @@
+# Rate Limit (Batas Maksimal) dari Let's Encrypt
+
+Gabisa start hproxy
+
+# # # ganti Let's Encrypt ke ZeroSSL
+
+#  Daftarkan Email ke ZeroSSL (Wajib untuk ZeroSSL)
+Bash
+/root/.acme.sh/acme.sh --register-account -m admin@najm.my.id --server zerossl
+
+
+# Ubah Default CA ke ZeroSSL
+Bash
+/root/.acme.sh/acme.sh --set-default-ca --server zerossl
+
+# Tembak Ulang Sertifikatnya (Sekarang menggunakan ZeroSSL)
+Bash
+domain=$(cat /etc/xray/domain)
+/root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256 --force
+
+# Install Sertifikat ke Xray
+Bash
+/root/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc --force
+
+# Buat File Gabungan untuk HAProxy & Jalankan Service
+Bash
+cat /etc/xray/xray.crt /etc/xray/xray.key > /etc/haproxy/hap.pem
+systemctl start haproxy
+systemctl start nginx
+systemctl restart xray
+
+# Cek Status Terakhir
+Bash
+systemctl status haproxy --no-pager -l

@@ -9,19 +9,16 @@ fi
 # Menghindari pesan error "mesg: ttyname failed"
 mesg n || true
 
-# Bersihkan layar terminal
-clear
-
-# Menjalankan Neofetch sebagai Banner
-# Script akan mengecek apakah neofetch ada, jika ada akan dijalankan.
-if command -v neofetch >/dev/null 2>&1; then
-    neofetch
+# Menjalankan Welcome Dashboard sebagai Banner Login
+if command -v welcome >/dev/null 2>&1; then
+    welcome
 else
-    # Fallback jika neofetch belum diinstall
-    echo -e "\033[1;36m"
+    # Fallback jika skrip welcome tidak ditemukan
+    clear
+    echo -e "\033[1;31m"
     echo "╔══════════════════════════════════════════╗"
-    echo "║     Silahkan install neofetch:           ║"
-    echo "║     apt update && apt install neofetch   ║"
+    echo "║ [!] Skrip 'welcome' tidak ditemukan!     ║"
+    echo "║     Ketik 'menu' untuk membuka panel.    ║"
     echo "╚══════════════════════════════════════════╝"
     echo -e "\033[0m"
 fi

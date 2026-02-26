@@ -113,13 +113,20 @@ Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
 sudo bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/finish-install.sh | bash'
 ```
 
-Fix Hproxy dan Nginx
+Fix ALL file usr-local-sbin
+Penganti perintah (sed -i 's/\r$//' /usr/local/sbin/\*), sed tidak aman.
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-usr-local-sbin.sh | bash
+```
+
+Fix Hproxy dan Nginx (Jika error)
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
 ```
 
-Fix Xray Failed Start
+Fix Xray Failed Start (Jika error)
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-xray.sh | bash
@@ -130,7 +137,7 @@ wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-err
 ### 8) Reboot VPS (Opsional)
 
 ```bash
-sed -i 's/\r$//' /usr/local/sbin/m-reboot && m-reboot
+m-reboot
 ```
 
 ---

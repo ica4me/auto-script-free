@@ -50,15 +50,12 @@ ChallengeResponseAuthentication no
 # Fitur Lain
 UsePAM yes
 X11Forwarding yes
-PrintMotd yes
 AcceptEnv LANG LC_*
 ClientAliveInterval 10
 ClientAliveCountMax 6
 
 # Include
 Include /etc/ssh/sshd_config.d/by_najm.conf
-PrintMotd yes
-Banner /etc/issue.net
 EOF
 
 if [ ! -s "$SSHD_CONFIG" ]; then

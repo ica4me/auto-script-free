@@ -208,31 +208,12 @@ xp ✅
 
 
 
-==========WAJIB XRAY
-PRIORITAS 1: Script Pembuat & Penghapus Akun (CRUD)
-yang bersentuhan langsung dengan /etc/xray/config.json
+==========Selanjutnya====
+perbaiki ssh/sshd ada error
+buat tunnel wireguard /26 dengan port forward
 
-===Keluarga VLESS===
-add-vle, del-vle
+backup all akun ssh,xray(vless,vmess,trojan,ssr), noobzvpn, zivpn, wireguard kalau jadi
 
-===Keluarga VMESS===
-add-vme, del-vme
-
-===Keluarga Trojan===
-add-tro, del-tro
-
-===Keluarga SSR===
-add-ssr, del-ssr
-
-===Keluarga Trial Xray===
-trial-vle, trial-vme, trial-tro, trial-ssr ✅
-
-
-PRIORITAS 2: Auto-Cleaner / Cronjob (Sangat Kritis) ✅
-xp, delexp, killtrial
-
-PRIORITAS 3: Lock, Unlock, dan Recover ❌
-lock-vl, lock-vm, lock-tr, unlock-vl, unlock-vm, unlock-tr, recover-vl (dsb.)
-
-PRIORITAS 4: Script Backup & Restore
-restore, restorepot, backup, backup_action
+root@id3:~# cat /etc/bot/.bot.db
+#bot# 8314808252:AAF-Wq0i1mxk2IgtITQaejxIofeqWovYDz4 6663648335
+root@id3:~#
