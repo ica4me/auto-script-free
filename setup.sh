@@ -338,12 +338,12 @@ clear
 }
 
 res13() {
-wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh | bash
+wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh && chmod +x fix-usr-local-sbin.sh && bash fix-usr-local-sbin.sh
 clear
 }
 
 res14() {
-wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh | bash
+wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
 clear
 }
 

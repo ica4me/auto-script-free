@@ -211,6 +211,13 @@ Go Free
 Selamat VPS Anda siap digunakan 🚀
 
 <details>
+<summary>**Service & Port List**</summary>
+<p align="center">
+ <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/service-port-list.png" width="300"/>
+</p>
+</details>
+
+<details>
 <summary>**Setting CloudFlare**</summary>
 
 - Pointing Domain
