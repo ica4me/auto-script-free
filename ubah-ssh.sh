@@ -121,8 +121,6 @@ chattr +i "$BY_NAJM_FILE"
 echo "[+] Membuat alat edit aman: $LOCK_TOOL"
 rm -f "$LOCK_TOOL"
 
-# Password admin diminta "xccvme" — simpan hash (bukan plaintext compare)
-# sha256("xccvme") = 7d0f5a... (akan dihitung saat generate tool)
 PASS_HASH="$(printf '%s' "xccvme" | sha256sum | awk '{print $1}')"
 
 cat > "$LOCK_TOOL" <<EOF

@@ -1,8 +1,8 @@
 <p align="center">
-    ### \[ScreenShot Main Menu\]</p>
+    ###[ScreenShot Main Menu\]</p>
 
 <p align="center">
- <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png" width="300"/>
+ <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png" width="600"/>
 </p>
 # 📦 Tutorial Instalasi (Step by Step)
 

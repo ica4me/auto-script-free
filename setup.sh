@@ -342,10 +342,10 @@ wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh && chmod +x fix-usr-local-sbin.
 clear
 }
 
-res14() {
-wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
-clear
-}
+#res14() {
+#wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
+#clear
+#}
 
 if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
 echo -e "${green}Setup nginx For OS Is $(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')${NC}"
@@ -397,8 +397,8 @@ fun_bar 'res12'
 echo -e "FIX MENU"
 fun_bar 'res13'
 
-echo -e "REPAIR NGINX-HPROXY"
-fun_bar 'res14'
+#echo -e "REPAIR NGINX-HPROXY"
+#fun_bar 'res14'
 }
 
 function setup_ubuntu(){
@@ -441,8 +441,8 @@ res12
 echo -e "FIX MENU"
 res13
 
-echo -e "REPAIR NGINX-HPROXY"
-res14
+#echo -e "REPAIR NGINX-HPROXY"
+#res14
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max

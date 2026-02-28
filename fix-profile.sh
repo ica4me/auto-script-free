@@ -17,10 +17,6 @@ echo "========================================================"
 
 # 1. JEBOL SEMUA ATRIBUT KUNCI (FORCE UNLOCK)
 echo "[+] Menjebol semua atribut pengunci file..."
-# -i: Immutable
-# -a: Append Only
-# -u: Undeletable
-# -e: Extent format
 chattr -i -a -u -e "$TARGET_FILE" >/dev/null 2>&1
 chattr -i -a -u -e "$BASHRC_FILE" >/dev/null 2>&1
 
@@ -65,7 +61,7 @@ EOF
 fi
 
 # Pastikan izin file benar
-chmod 644 "$TARGET_FILE"
+chmod 644 "$TARGET_FILE" 2>/dev/null || true
 
 # 4. KUNCI MATI (SUPER LOCK)
 echo "[+] Mengaktifkan SUPER LOCK (+i)..."
@@ -89,10 +85,10 @@ echo "==================================================="
 echo "   SECURE PROFILE EDITOR"
 echo "   File ini dilindungi (Immutable)."
 echo "==================================================="
-read -s -p "Masukkan Password Admin (xccvme): " MYPASS
+read -s -p "Masukkan Password Admin (najm123): " MYPASS
 echo ""
 
-if [ "\$MYPASS" == "xccvme" ]; then
+if [ "\$MYPASS" == "najm123" ]; then
     echo "🔓 Password Benar. Membuka kunci sementara..."
     chattr -i -a -u -e \$TARGET
     
@@ -119,5 +115,5 @@ echo "⚠️  CATATAN:"
 echo "1. File '/root/.profile' sekarang TERKUNCI PERMANEN (+i)."
 echo "2. Untuk mengeditnya, WAJIB gunakan perintah:"
 echo "   👉 edit-profile"
-echo "   (Password: xccvme)"
+echo "   (Password: najm123)"
 echo "========================================================"
