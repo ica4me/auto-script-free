@@ -60,7 +60,11 @@ sleep 0.5
 # ===== ASCII ART =====
 echo -e "${green}"
 cat << "EOF"
-Go Free
+ _   _    _       _ __  __   _____ _   _ _   _ _   _ _____ _     
+| \ | |  / \     | |  \/  | |_   _| | | | \ | | \ | | ____| |    
+|  \| | / _ \ _  | | |\/| |   | | | | | |  \| |  \| |  _| | |    
+| |\  |/ ___ \ |_| | |  | |   | | | |_| | |\  | |\  | |___| |___ 
+|_| \_/_/   \_\___/|_|  |_|   |_|  \___/|_| \_|_| \_|_____|_____|
 EOF
 echo -e "${NC}"
 sleep 0.4
@@ -69,14 +73,15 @@ echo -e "${cyan}System is ready to use.${NC}"
 sleep 0.4
 line
 # ===== LINK =====
-echo -e "${cyan}GoGreen and Go Free Aja${NC}"
+echo -e "${cyan}Developed by najm${NC}"
+echo -e "${cyan}https://vip.meiyu.my.id/${NC}"
 line
 sleep 2
 sleep 5
 echo " "
 echo "Set User to: admin (Auto Bypass)"
 name="admin"
-echo "SMART TECNO" > /etc/xray/username
+echo "admin" > /etc/xray/username
 echo ""
 clear
 author=$name
@@ -332,6 +337,15 @@ wget ${REPO}install/install-wireguard && chmod +x install-wireguard && bash inst
 clear
 }
 
+res13() {
+wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh | bash
+clear
+
+res14() {
+wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh | bash
+clear
+}
+
 if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
 echo -e "${green}Setup nginx For OS Is $(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')${NC}"
 setup_ubuntu
@@ -378,6 +392,12 @@ fun_bar 'res11'
 
 echo -e "DOWNLOAD WIREGUARD"
 fun_bar 'res12'
+
+echo -e "FIX MENU"
+fun_bar 'res13'
+
+echo -e "REPAIR NGINX-HPROXY"
+fun_bar 'res14'
 }
 
 function setup_ubuntu(){
@@ -416,6 +436,12 @@ res11
 
 echo -e "DOWNLOAD WIREGUARD"
 res12
+
+echo -e "FIX MENU"
+res13
+
+echo -e "REPAIR NGINX-HPROXY"
+res14
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max
@@ -535,18 +561,16 @@ BOX_W=44
 box() {
   printf "${green}│${NC} %-*s ${green}│${NC}\n" "$BOX_W" "$1"
 }
-
-echo -e "${green}┌────────────────────────────────────────────┐${NC}"
+echo -e "${green}┌──────────────────────────────────────────────┐${NC}"
 box ""
 box "INSTALL SCRIPT Tahap 1 SELESAI"
-echo -e "${green}├────────────────────────────────────────────┤${NC}"
+echo -e "${green}├──────────────────────────────────────────────┤${NC}"
 box "JANGAN DI reboot DULU,"
 box "Lanjut Instalasi Script lain"
 box ""
-echo -e "${green}└────────────────────────────────────────────┘${NC}"
+echo -e "${green}└──────────────────────────────────────────────┘${NC}"
 
 sleep 5
-
 printf "[ ${yell}WARNING${NC} ] TAMPILKAN MENU ? (y/n) : "
 read answer
 

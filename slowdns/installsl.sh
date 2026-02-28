@@ -1,5 +1,5 @@
 #!/bin/sh
-REPOS="http://ansendant.web.id/os/"
+REPOS="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
 ns_domain_cloudflare() {
 	DOMAIN=$(cat /etc/xray/domain | cut -d "." -f2-4)
 	DOMAIN_PATH=$(cat /etc/xray/domain)
@@ -7,7 +7,7 @@ ns_domain_cloudflare() {
 	SUB_DOMAIN=${SUB}."${DOMAIN}"
 	NS_DOMAIN=ns-${SUB_DOMAIN}
 	CF_ID= Ridwanstoreaws@gmail.com
-        CF_KEY=4ecfe9035f4e6e60829e519bd5ee17d66954f
+        CF_KEY=Ganti key cloudflare
 	set -euo pipefail
 	IP=$(wget -qO- ipinfo.io/ip)
 	echo "Updating DNS NS for ${NS_DOMAIN}..."
