@@ -340,6 +340,7 @@ clear
 res13() {
 wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh | bash
 clear
+}
 
 res14() {
 wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh | bash
