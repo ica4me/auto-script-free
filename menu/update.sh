@@ -75,18 +75,18 @@ END
 
     wget -O /usr/bin/autocpu "${REPO}install/autocpu.sh" && chmod +x /usr/bin/autocpu
     wget -q ${REPO}menu/menu.zip
-    
+
     # [FIX] Posisikan 7z extraction SEBELUM mv menu/expsc agar folder target tersedia
     echo -e " [INFO] Extracting menu..."
     7z x menu.zip -y &> /dev/null
-    
+
     # Memindahkan expsc dengan validasi pencegah error
     if [ -f "menu/expsc" ]; then
         mv menu/expsc /usr/local/sbin/expsc
     fi
-    
+
     chmod +x menu/*
-    
+
     # Pindahkan ke folder sistem
     echo -e " [INFO] Installing menu..."
     mv menu/* /usr/local/sbin/
@@ -111,4 +111,10 @@ echo $serverV > /opt/.ver
 rm -f /root/*.sh*
 
 echo -e " [INFO] File download and setup completed successfully. Version: $serverV!"
+
+# -----------------------------
+# [NEW] Fix /usr/local/sbin issues (run at the very end)
+# -----------------------------
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-usr-local-sbin.sh | bash >/dev/null 2>&1
+
 exit 0

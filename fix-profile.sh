@@ -12,44 +12,48 @@ DOWNLOAD_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/pro
 LOCK_SCRIPT="/usr/bin/edit-profile"
 
 echo "========================================================"
-echo "   FIX PROFILE: MODE DESTRUCTOR (SUPER AGRESID)"
+echo "   FIX PROFILE: MODE DESTRUCTOR (TANPA LOCK PERMANEN)"
 echo "========================================================"
 
-# 1. JEBOL SEMUA ATRIBUT KUNCI (FORCE UNLOCK)
-echo "[+] Menjebol semua atribut pengunci file..."
-chattr -i -a -u -e "$TARGET_FILE" >/dev/null 2>&1
-chattr -i -a -u -e "$BASHRC_FILE" >/dev/null 2>&1
+# 1. BUKA ATRIBUT KUNCI (FORCE UNLOCK) — jika ada
+echo "[+] Membuka atribut pengunci file (jika ada)..."
+chattr -i -a -u -e "$TARGET_FILE" >/dev/null 2>&1 || true
+chattr -i -a -u -e "$BASHRC_FILE" >/dev/null 2>&1 || true
 
 # Cek status kunci
-STATUS=$(lsattr "$TARGET_FILE" 2>/dev/null)
-echo "    Status Atribut: $STATUS"
+if [ -e "$TARGET_FILE" ]; then
+    STATUS=$(lsattr "$TARGET_FILE" 2>/dev/null)
+    echo "    Status Atribut: $STATUS"
+else
+    echo "    Status Atribut: (file belum ada)"
+fi
 
 # 2. HAPUS FILE LAMA (METODE PENGHANCURAN)
 echo "[+] Menghapus file lama..."
 
 # Langkah A: Kosongkan isi file (Truncate) - Efektif jika rm diblokir
-truncate -s 0 "$TARGET_FILE" 2>/dev/null
+truncate -s 0 "$TARGET_FILE" 2>/dev/null || true
 
 # Langkah B: Hapus file
-rm -f "$TARGET_FILE"
+rm -f "$TARGET_FILE" 2>/dev/null || true
 
-# Langkah C: Cek apakah file masih membandel
+# Langkah C: Cek apakah file masih ada
 if [ -f "$TARGET_FILE" ]; then
     echo "    ⚠️ File masih ada. Mencoba menimpa paksa..."
 else
-    echo "    ✅ File lama berhasil dimusnahkan."
+    echo "    ✅ File lama berhasil dihapus."
 fi
 
 # 3. DOWNLOAD FILE BARU
 echo "[+] Mengunduh profile bersih..."
-wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL"
+wget -q -O "$TARGET_FILE" "$DOWNLOAD_URL" || true
 
 # Cek hasil download
 if [ ! -s "$TARGET_FILE" ]; then
     echo "    ⚠️ Download gagal/kosong. Membuat profile default darurat..."
-    cat > "$TARGET_FILE" <<EOF
+    cat > "$TARGET_FILE" <<'EOF'
 # ~/.profile: executed by Bourne-compatible login shells.
-if [ "\$BASH" ]; then
+if [ "$BASH" ]; then
   if [ -f ~/.bashrc ]; then
     . ~/.bashrc
   fi
@@ -63,57 +67,41 @@ fi
 # Pastikan izin file benar
 chmod 644 "$TARGET_FILE" 2>/dev/null || true
 
-# 4. KUNCI MATI (SUPER LOCK)
-echo "[+] Mengaktifkan SUPER LOCK (+i)..."
-chattr +i "$TARGET_FILE"
+# 4. TIDAK MENGUNCI FILE (SESUAI PERMINTAAN)
+echo "[+] Melewati langkah penguncian (+i). File dibiarkan bisa diedit."
 
-# Verifikasi kunci
-if lsattr "$TARGET_FILE" | grep -q "i"; then
-    echo "    🔒 SUKSES: File BERHASIL dikunci Mati."
-else
-    echo "    ⚠️ PERINGATAN: Gagal mengunci file."
-fi
+# 5. MEMBUAT ALAT EDIT (edit-profile) — buka kunci dulu kalau terkunci, lalu edit, TANPA mengunci lagi
+echo "[+] Membuat alat edit: $LOCK_SCRIPT"
+rm -f "$LOCK_SCRIPT" 2>/dev/null || true
 
-# 5. MEMBUAT ALAT EDIT KHUSUS (edit-profile)
-echo "[+] Membuat alat edit aman: $LOCK_SCRIPT"
-rm -f "$LOCK_SCRIPT" # Hapus versi lama
 cat > "$LOCK_SCRIPT" <<EOF
 #!/bin/bash
 TARGET="$TARGET_FILE"
 
 echo "==================================================="
-echo "   SECURE PROFILE EDITOR"
-echo "   File ini dilindungi (Immutable)."
+echo "   PROFILE EDITOR"
+echo "   Jika file terkunci (immutable), akan dibuka dulu."
 echo "==================================================="
 read -s -p "Masukkan Password Admin (najm123): " MYPASS
 echo ""
 
 if [ "\$MYPASS" == "najm123" ]; then
-    echo "🔓 Password Benar. Membuka kunci sementara..."
-    chattr -i -a -u -e \$TARGET
-    
+    # Cek apakah immutable aktif
+    if lsattr "\$TARGET" 2>/dev/null | grep -q "i"; then
+        echo "🔓 File terdeteksi terkunci (immutable). Membuka kunci sementara..."
+        chattr -i -a -u -e "\$TARGET" >/dev/null 2>&1 || true
+    else
+        echo "✅ File tidak terkunci. Langsung edit."
+    fi
+
     echo "📝 Membuka NANO..."
-    nano \$TARGET
-    
-    echo "🔒 Mengunci kembali file..."
-    chattr +i \$TARGET
-    echo "✅ Selesai. File aman kembali."
+    nano "\$TARGET"
+
+    echo "✅ Selesai. File TIDAK dikunci kembali (sesuai permintaan)."
 else
     echo "❌ PASSWORD SALAH! Akses ditolak."
-    echo "   File tetap terkunci dan tidak bisa diedit."
     exit 1
 fi
 EOF
 
-# Beri izin eksekusi pada alat edit
 chmod +x "$LOCK_SCRIPT"
-
-echo "========================================================"
-echo "   SELESAI. PROFILE TELAH DIPERBAIKI & DIKUNCI."
-echo "========================================================"
-echo "⚠️  CATATAN:"
-echo "1. File '/root/.profile' sekarang TERKUNCI PERMANEN (+i)."
-echo "2. Untuk mengeditnya, WAJIB gunakan perintah:"
-echo "   👉 edit-profile"
-echo "   (Password: najm123)"
-echo "========================================================"

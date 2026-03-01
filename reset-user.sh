@@ -152,17 +152,3 @@ esac
 EOF
 
 chmod +x "$LOCK_TOOL"
-
-echo ""
-echo "======================================"
-echo "DONE"
-echo "======================================"
-echo "Admin login:"
-echo "username : $USERNAME"
-echo "password : [TERSEMBUNYI]"
-echo ""
-echo "Manage lock:"
-echo "edit-user-config"
-echo ""
-echo "Add SSH still works normally"
-echo "======================================"
