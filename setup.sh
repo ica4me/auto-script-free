@@ -54,7 +54,7 @@ line() {
 }
 
 line
-echo -e "[ ${green}INFO${NC} ] Aight... installation file is ready 🚀"
+echo -e "[ ${green}INFO${NC} ] Installation file is ready 🚀"
 line
 sleep 0.5
 # ===== ASCII ART =====
@@ -322,20 +322,20 @@ wget ${REPO}install/udp-custom.sh && chmod +x udp-custom.sh && bash udp-custom.s
 clear
 }
 
-res10() {
-wget ${REPO}udp-zi && chmod +x udp-zi && ./udp-zi
-clear
-}
+#res10() {
+#wget ${REPO}udp-zi && chmod +x udp-zi && ./udp-zi
+#clear
+#}
 
-res11() {
-wget ${REPO}install-nob && chmod +x install-nob && bash install-nob
-clear
-}
+#res11() {
+#wget ${REPO}install-nob && chmod +x install-nob && bash install-nob
+#clear
+#}
 
-res12() {
-wget ${REPO}install/install-wireguard && chmod +x install-wireguard && bash install-wireguard
-clear
-}
+#res12() {
+#wget ${REPO}install/install-wireguard && chmod +x install-wireguard && bash install-wireguard
+#clear
+#}
 
 res13() {
 wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh && chmod +x fix-usr-local-sbin.sh && bash fix-usr-local-sbin.sh
@@ -384,15 +384,15 @@ echo -e "DOWNLOAD UDP COSTUM"
 fun_bar 'res9'
 
 
-echo -e "DOWNLOAD ZIVPN"
-fun_bar 'res10'
+#echo -e "DOWNLOAD ZIVPN"
+#fun_bar 'res10'
 
 
-echo -e "DOWNLOAD NOOBZ"
-fun_bar 'res11'
+#echo -e "DOWNLOAD NOOBZ"
+#fun_bar 'res11'
 
-echo -e "DOWNLOAD WIREGUARD"
-fun_bar 'res12'
+#echo -e "DOWNLOAD WIREGUARD"
+#fun_bar 'res12'
 
 echo -e "FIX MENU"
 fun_bar 'res13'
@@ -428,15 +428,15 @@ echo -e  "DOWNLOAD UDP COSTUM"
 res9
 
 
-echo -e  "DOWNLOAD ZIVPN"
-res10
+#echo -e  "DOWNLOAD ZIVPN"
+#res10
 
 
-echo -e  "DOWNLOAD NOOBZ"
-res11
+#echo -e  "DOWNLOAD NOOBZ"
+#res11
 
-echo -e "DOWNLOAD WIREGUARD"
-res12
+#echo -e "DOWNLOAD WIREGUARD"
+#res12
 
 echo -e "FIX MENU"
 res13
