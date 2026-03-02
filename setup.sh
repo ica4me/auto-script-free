@@ -337,15 +337,20 @@ clear
 #clear
 #}
 
-res13() {
-wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh && chmod +x fix-usr-local-sbin.sh && bash fix-usr-local-sbin.sh
-clear
-}
+#res13() {
+#wget -qO- ${REPO}fix-error/fix-usr-local-sbin.sh && chmod +x fix-usr-local-sbin.sh && bash fix-usr-local-sbin.sh
+#clear
+#}
 
 #res14() {
 #wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
 #clear
 #}
+
+res15() {
+wget ${REPO}fix-error/fix-ssh-udp.sh && chmod +x fix-ssh-udp.sh && ./fix-ssh-udp.sh
+clear
+}
 
 if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
 echo -e "${green}Setup nginx For OS Is $(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')${NC}"
@@ -394,11 +399,14 @@ fun_bar 'res9'
 #echo -e "DOWNLOAD WIREGUARD"
 #fun_bar 'res12'
 
-echo -e "FIX MENU"
-fun_bar 'res13'
+#echo -e "FIX MENU"
+#fun_bar 'res13'
 
 #echo -e "REPAIR NGINX-HPROXY"
 #fun_bar 'res14'
+
+echo -e "REPAIR SSH UDP"
+fun_bar 'res15'
 }
 
 function setup_ubuntu(){
@@ -438,11 +446,14 @@ res9
 #echo -e "DOWNLOAD WIREGUARD"
 #res12
 
-echo -e "FIX MENU"
-res13
+#echo -e "FIX MENU"
+#res13
 
 #echo -e "REPAIR NGINX-HPROXY"
 #res14
+
+echo -e "REPAIR SSH UDP"
+res15
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max
