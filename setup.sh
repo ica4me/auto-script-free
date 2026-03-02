@@ -342,13 +342,18 @@ clear
 #clear
 #}
 
-#res14() {
-#wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
-#clear
-#}
+res14() {
+wget -qO- ${REPO}fix-error/fix-proxy-nginx.sh && chmod +x fix-proxy-nginx.sh && bash fix-proxy-nginx.sh
+clear
+}
 
 res15() {
 wget ${REPO}fix-error/fix-ssh-udp.sh && chmod +x fix-ssh-udp.sh && ./fix-ssh-udp.sh
+clear
+}
+
+res16() {
+wget ${REPO}fix-error/setup-audit-pro.sh && chmod +x setup-audit-pro.sh && ./setup-audit-pro.sh
 clear
 }
 
@@ -402,11 +407,14 @@ fun_bar 'res9'
 #echo -e "FIX MENU"
 #fun_bar 'res13'
 
-#echo -e "REPAIR NGINX-HPROXY"
-#fun_bar 'res14'
+echo -e "REPAIR NGINX-HPROXY"
+fun_bar 'res14'
 
 echo -e "REPAIR SSH UDP"
 fun_bar 'res15'
+
+echo -e "SET NOTIFI SERVICE"
+fun_bar 'res16'
 }
 
 function setup_ubuntu(){
@@ -449,11 +457,14 @@ res9
 #echo -e "FIX MENU"
 #res13
 
-#echo -e "REPAIR NGINX-HPROXY"
-#res14
+echo -e "REPAIR NGINX-HPROXY"
+res14
 
 echo -e "REPAIR SSH UDP"
 res15
+
+echo -e "SET NOTIFI SERVICE"
+res16
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max
