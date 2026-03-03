@@ -146,6 +146,12 @@ wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-err
 m-reboot
 ```
 
+Fix Systemctl yang hilang
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-systemctl.sh | bash
+```
+
 ---
 
 ## ✅ Instalasi Selesai
