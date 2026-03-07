@@ -138,6 +138,12 @@ Fix Xray Failed Start (Jika error)
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-xray.sh | bash
 ```
 
+REPAIR IPTABLES NAT PREROUTING
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/Iptables-nat-repair.sh | bash
+```
+
 ---
 
 ### 8) Reboot VPS (Opsional)

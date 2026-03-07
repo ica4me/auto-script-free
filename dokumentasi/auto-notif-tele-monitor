@@ -29,17 +29,15 @@ command -v jq >/dev/null 2>&1 || (apt-get update -y >/dev/null 2>&1 && apt-get i
 send_tele() {
   local text="$1"
   if [[ ${#text} -gt 3800 ]]; then
-    text="${text:0:3800}
-... (dipotong karena terlalu panjang)"
+    text="${text:0:3800}\n... (dipotong karena terlalu panjang)"
   fi
   curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
     -d "chat_id=${CHAT_ID}" \
     --data-urlencode "text=${text}" \
     -d "parse_mode=HTML" >/dev/null 2>&1
-  sleep 1 # Jeda 1 detik agar Telegram tidak memblokir karena spam (Too Many Requests)
+  sleep 1
 }
 
-# --- utils: baca angka dari file ---
 read_int_file() {
   local f="$1" def="${2:-0}"
   if [[ -f "$f" ]]; then
@@ -61,13 +59,12 @@ bytes_to_gb_int() {
 }
 
 # ==========================================
-# SSH / DROPBEAR (Logika Identik dengan member-ssh)
+# SSH / DROPBEAR
 # ==========================================
 get_ssh_dropbear_online() {
   declare -A ONLINE_COUNT
   declare -A DB_USER_BY_PID
 
-  # 1. Ambil sesi SSHD aktif (OpenSSH)
   while IFS= read -r line; do
     user="$(sed -n 's/^.*sshd: \([^ @][^@]*\)@.*/\1/p' <<< "$line")"
     if [[ -n "$user" ]]; then
@@ -75,7 +72,6 @@ get_ssh_dropbear_online() {
     fi
   done < <(ps -eo args 2>/dev/null | grep -E 'sshd: .*@' | grep -v grep)
 
-  # 2. Ambil sesi Dropbear aktif dari Journalctl
   if command -v journalctl >/dev/null 2>&1; then
     while IFS= read -r line; do
       if [[ "$line" == *"Password auth succeeded for"* ]]; then
@@ -97,7 +93,6 @@ get_ssh_dropbear_online() {
     done < <(journalctl -u dropbear --since "7 days ago" -o cat 2>/dev/null | grep -E 'dropbear\[|Password auth succeeded for|Exit \(')
   fi
 
-  # 3. Validasi PID dropbear yang benar-benar masih hidup di /proc
   for pid in "${!DB_USER_BY_PID[@]}"; do
     if [[ -d "/proc/$pid" ]]; then
       cmdline="$(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null)"
@@ -109,17 +104,12 @@ get_ssh_dropbear_online() {
     fi
   done
 
-  # Bangun Data Output (Format: username|online_count|limit)
   local total_users=0
   local lines=""
 
-  # Mencegah error jika array kosong
   if [[ ${#ONLINE_COUNT[@]} -gt 0 ]]; then
     for u in "${!ONLINE_COUNT[@]}"; do
-      
-      # KECUALIKAN USER ROOT DARI LAPORAN
       [[ "$u" == "root" ]] && continue
-
       cek_login="${ONLINE_COUNT[$u]}"
       [[ -z "$cek_login" ]] && cek_login=0
       
@@ -136,7 +126,9 @@ get_ssh_dropbear_online() {
   echo -e -n "$lines"
 }
 
-# XRAY + quota used/limit
+# ==========================================
+# XRAY PROTOCOLS
+# ==========================================
 xray_proto_report() {
   local proto_dir="$1"
   local email_prefix="$2"
@@ -145,8 +137,18 @@ xray_proto_report() {
 
   local total=0
   local lines=""
-  local ACCESS_TAIL=""
-  [[ -f "$access" ]] && ACCESS_TAIL="$(tail -n 5000 "$access" 2>/dev/null)"
+  local RECENT_LOG=""
+
+  if [[ -f "$access" ]]; then
+    local d0="$(date +"%Y/%m/%d %H:%M")"
+    local d1="$(date -d "1 minute ago" +"%Y/%m/%d %H:%M")"
+    local d2="$(date -d "2 minutes ago" +"%Y/%m/%d %H:%M")"
+    local d3="$(date +"%Y-%m-%d %H:%M")"
+    local d4="$(date -d "1 minute ago" +"%Y-%m-%d %H:%M")"
+    local d5="$(date -d "2 minutes ago" +"%Y-%m-%d %H:%M")"
+    
+    RECENT_LOG="$(tail -n 10000 "$access" 2>/dev/null | grep -E "${d0}|${d1}|${d2}|${d3}|${d4}|${d5}")"
+  fi
 
   if [[ -f "$db_file" ]]; then
     while IFS= read -r line; do
@@ -157,17 +159,15 @@ xray_proto_report() {
       limit_ip="$(read_int_file "/etc/kyt/limit/${proto_dir}/ip/${user}" 0)"
 
       active_ips=0
-      if [[ -n "$ACCESS_TAIL" ]]; then
-        active_ips="$(echo "$ACCESS_TAIL" | grep -F "email: ${email_prefix}-${user}" 2>/dev/null | awk '{print $3}' | cut -d: -f1 | sort -u | wc -l)"
+      if [[ -n "$RECENT_LOG" ]]; then
+        active_ips="$(echo "$RECENT_LOG" | grep -F "email: ${email_prefix}-${user}" 2>/dev/null | awk '{print $3}' | cut -d: -f1 | sort -u | wc -l)"
       fi
-      [[ -z "${active_ips:-}" ]] && active_ips=0
 
       if [[ "$active_ips" -gt 0 ]]; then
         total=$((total + 1))
 
         limit_bytes="$(read_int_file "/etc/${proto_dir}/${user}" 0)"
         used_bytes="$(read_int_file "/etc/kyt/limit/${proto_dir}/${user}" 0)"
-
         limit_gb="$(bytes_to_gb_int "$limit_bytes")"
         used_gb="$(bytes_to_gb_int "$used_bytes")"
 
@@ -179,18 +179,18 @@ xray_proto_report() {
 
         warn=""
         [[ "$limit_ip" -gt 0 && "$active_ips" -gt "$limit_ip" ]] && warn=" 🚨<b>[OVERLIMIT]</b>"
-
-        lines+="⚡ <code>${user}</code> | IP: ${active_ips}/${limit_ip} | Q: ${q}${warn}
-"
+        lines+="⚡ <code>${user}</code> | IP: ${active_ips}/${limit_ip} | Q: ${q}${warn}\n"
       fi
     done < <(grep -E "^(###|#&)" "$db_file" 2>/dev/null)
   fi
 
   echo "$total"
-  echo "$lines"
+  echo -e -n "$lines"
 }
 
-# Noobz
+# ==========================================
+# NOOBZ VPN
+# ==========================================
 get_noobz_online() {
   if ! command -v noobzvpns >/dev/null 2>&1; then echo "0"; echo ""; return; fi
   info="$(noobzvpns --info-all-user 2>/dev/null || true)"
@@ -198,63 +198,102 @@ get_noobz_online() {
   count="$(echo "$users" | sed '/^$/d' | wc -l | awk '{print $1}')"
   lines=""
   if [[ "$count" -gt 0 ]]; then
-    while read -r u; do [[ -n "$u" ]] && lines+="⚡ <code>${u}</code> | <b>ACTIVE</b>
-"; done <<< "$users"
+    while read -r u; do [[ -n "$u" ]] && lines+="⚡ <code>${u}</code> | <b>ACTIVE</b>\n"; done <<< "$users"
   fi
-  echo "$count"; echo "$lines"
+  echo "$count"; echo -e -n "$lines"
 }
 
-# ZiVPN
+# ==========================================
+# ZIVPN (State-Machine Real-Time)
+# ==========================================
 get_zivpn_online() {
-  local since="5 minutes ago"
-  local j=""
-  j="$(journalctl --no-pager --since "$since" 2>/dev/null | grep -E "zivpn-bin|zivpn" 2>/dev/null || true)"
-  [[ -z "$j" ]] && { echo "0"; echo ""; return; }
+  if ! command -v journalctl >/dev/null 2>&1; then echo "0"; echo ""; return; fi
+  
+  # Membaca log 24 jam terakhir dengan AWK engine untuk membangun array Active Session
+  local zivpn_data
+  zivpn_data=$(journalctl -u zivpn --since "1 days ago" --no-pager 2>/dev/null | awk '
+    /client connected/ {
+      idx = index($0, "\"addr\": \"")
+      if (idx > 0) {
+        str = substr($0, idx + 9)
+        sub(/\".*/, "", str)
+        if (str != "") active[str] = 1
+      }
+    }
+    /client disconnected/ {
+      idx = index($0, "\"addr\": \"")
+      if (idx > 0) {
+        str = substr($0, idx + 9)
+        sub(/\".*/, "", str)
+        if (str != "") delete active[str]
+      }
+    }
+    END {
+      # Hitung jumlah sesi per IP dari list active session
+      for (addr in active) {
+        sub(/:[0-9]+$/, "", addr) # Hapus Port untuk mendapatkan IP murni
+        if (addr != "" && addr != "127.0.0.1" && addr != "0.0.0.0") {
+          ip_counts[addr]++
+        }
+      }
+      for (ip in ip_counts) {
+        print ip "|" ip_counts[ip]
+      }
+    }
+  ')
 
-  declare -A ipset=()
-  while IFS= read -r line; do
-    if echo "$line" | grep -q "client connected"; then
-      ip="$(echo "$line" | sed -n 's/.*"addr": *"\([0-9.]\+\):[0-9]\+".*/\1/p')"
-      [[ -n "${ip:-}" ]] && ipset["$ip"]=1
-    elif echo "$line" | grep -q "client disconnected"; then
-      ip="$(echo "$line" | sed -n 's/.*"addr": *"\([0-9.]\+\):[0-9]\+".*/\1/p')"
-      [[ -n "${ip:-}" ]] && unset 'ipset[$ip]'
-    fi
-  done <<< "$j"
-
-  count="${#ipset[@]}"
-  lines=""
-  if [[ "$count" -gt 0 ]]; then
-    for ip in "${!ipset[@]}"; do lines+="⚡ <code>${ip}</code>
-"; done
-    lines="$(echo "$lines" | sort)"
+  if [[ -z "$zivpn_data" ]]; then
+    echo "0"
+    echo ""
+    return
   fi
-  echo "$count"; echo "$lines"
+
+  local total_ips=0
+  local lines=""
+
+  while IFS='|' read -r ip freq; do
+    if [[ -n "$ip" && -n "$freq" ]]; then
+      lines+="⚡ <code>${ip}</code> (<b>${freq} Sesi</b>)\n"
+      total_ips=$((total_ips + 1))
+    fi
+  done <<< "$zivpn_data"
+
+  echo "$total_ips"
+  echo -e -n "$lines"
 }
 
-# WireGuard
+# ==========================================
+# WIREGUARD
+# ==========================================
 get_wg_online() {
   if ! command -v wg >/dev/null 2>&1; then echo "0"; echo ""; return; fi
   if ! wg show wg0 >/dev/null 2>&1; then echo "0"; echo ""; return; fi
+  
   local db="/etc/wireguard/database.json"
   local count=0
   local lines=""
+  
   while read -r pubkey handshake; do
     [[ "$handshake" =~ ^[0-9]+$ ]] || continue
+    
     if [[ "$handshake" -gt 0 ]]; then
       diff=$((NOW_SEC - handshake))
+      
       if [[ "$diff" -le 180 ]]; then
         user="$(jq -r --arg pk "$pubkey" '.clients | to_entries[] | select(.value.pubkey == $pk) | .key' "$db" 2>/dev/null | head -n 1)"
         exp="$(jq -r --arg pk "$pubkey" '.clients | to_entries[] | select(.value.pubkey == $pk) | .value.exp' "$db" 2>/dev/null | head -n 1)"
-        [[ -z "$user" || "$user" == "null" ]] && user="$pubkey"
+        
+        [[ -z "$user" || "$user" == "null" ]] && user="${pubkey:0:8}..."
         [[ -z "$exp" || "$exp" == "null" ]] && exp="-"
-        lines+="⚡ <code>${user}</code> | HS: ${diff}s | Exp: ${exp}
-"
+        
+        lines+="⚡ <code>${user}</code> | ON (${diff}s yang lalu)\n"
         count=$((count + 1))
       fi
     fi
-  done < <(wg show wg0 dump 2>/dev/null | tail -n +2 | awk '{print $1, $6}')
-  echo "$count"; echo "$lines"
+  done < <(wg show wg0 latest-handshakes 2>/dev/null)
+  
+  echo "$count"
+  echo -e -n "$lines"
 }
 
 # ==========================================
@@ -293,17 +332,15 @@ if [[ "$ssh_total" -gt 0 ]]; then
     fi
 
     if [[ "$limit_str" == "No Limit" ]]; then
-       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/No Limit) ${warn}
-"
+       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/No Limit) ${warn}\n"
     else
-       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/${limit_str} IP) ${warn}
-"
+       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/${limit_str} IP) ${warn}\n"
     fi
   done <<< "$ssh_raw"
   send_tele "$MSG_SSH"
 fi
 
-# --- 2. XRAY PROTOCOL (Digabung 1 Bubble) ---
+# --- 2. XRAY PROTOCOLS ---
 vless_out="$(xray_proto_report "vless" "vless")"
 vless_total="$(echo "$vless_out" | head -n 1)"
 vless_lines="$(echo "$vless_out" | tail -n +2)"
@@ -328,20 +365,20 @@ if [[ "$xray_total" -gt 0 ]]; then
 
 🟣 <b>Vless</b> : <b>${vless_total}</b>
 "
-  [[ "$vless_total" -gt 0 ]] && MSG_XRAY+="${vless_lines}
-"
+  [[ "$vless_total" -gt 0 ]] && MSG_XRAY+="${vless_lines}\n"
+  
   MSG_XRAY+="🟣 <b>Vmess</b> : <b>${vmess_total}</b>
 "
-  [[ "$vmess_total" -gt 0 ]] && MSG_XRAY+="${vmess_lines}
-"
+  [[ "$vmess_total" -gt 0 ]] && MSG_XRAY+="${vmess_lines}\n"
+  
   MSG_XRAY+="🟣 <b>Trojan</b> : <b>${trojan_total}</b>
 "
-  [[ "$trojan_total" -gt 0 ]] && MSG_XRAY+="${trojan_lines}
-"
+  [[ "$trojan_total" -gt 0 ]] && MSG_XRAY+="${trojan_lines}\n"
+  
   MSG_XRAY+="🟣 <b>SS-R</b> : <b>${ssr_total}</b>
 "
-  [[ "$ssr_total" -gt 0 ]] && MSG_XRAY+="${ssr_lines}
-"
+  [[ "$ssr_total" -gt 0 ]] && MSG_XRAY+="${ssr_lines}\n"
+  
   send_tele "$MSG_XRAY"
 fi
 
@@ -352,9 +389,7 @@ noobz_lines="$(echo "$noobz_out" | tail -n +2)"
 
 if [[ "$noobz_total" -gt 0 ]]; then
   TOTAL_SEMUA=$((TOTAL_SEMUA + noobz_total))
-  MSG_NOOBZ="${HEADER_TEXT}🟡 <b>Noobz VPN</b> : <b>${noobz_total}</b>
-${noobz_lines}
-"
+  MSG_NOOBZ="${HEADER_TEXT}🟡 <b>Noobz VPN</b> : <b>${noobz_total}</b>\n${noobz_lines}"
   send_tele "$MSG_NOOBZ"
 fi
 
@@ -365,9 +400,7 @@ zivpn_lines="$(echo "$zivpn_out" | tail -n +2)"
 
 if [[ "$zivpn_total" -gt 0 ]]; then
   TOTAL_SEMUA=$((TOTAL_SEMUA + zivpn_total))
-  MSG_ZIVPN="${HEADER_TEXT}🟠 <b>ZiVPN</b> : <b>${zivpn_total}</b>
-${zivpn_lines}
-"
+  MSG_ZIVPN="${HEADER_TEXT}🟠 <b>ZiVPN</b> : <b>${zivpn_total}</b>\n${zivpn_lines}"
   send_tele "$MSG_ZIVPN"
 fi
 
@@ -378,16 +411,13 @@ wg_lines="$(echo "$wg_out" | tail -n +2)"
 
 if [[ "$wg_total" -gt 0 ]]; then
   TOTAL_SEMUA=$((TOTAL_SEMUA + wg_total))
-  MSG_WG="${HEADER_TEXT}🔵 <b>Wireguard</b> : <b>${wg_total}</b>
-${wg_lines}
-"
+  MSG_WG="${HEADER_TEXT}🔵 <b>Wireguard</b> : <b>${wg_total}</b>\n${wg_lines}"
   send_tele "$MSG_WG"
 fi
 
-# --- 6. JIKA SERVER HENING / TIDAK ADA SAMA SEKALI ---
+# --- 6. SERVER HENING ---
 if [[ "$TOTAL_SEMUA" -eq 0 ]]; then
-  MSG_HENING="${HEADER_TEXT}🔇 <b>SERVER HENING</b>
-Tidak ada client yang terhubung saat ini."
+  MSG_HENING="${HEADER_TEXT}🔇 <b>SERVER HENING</b>\nTidak ada client yang terhubung saat ini."
   send_tele "$MSG_HENING"
 fi
 
