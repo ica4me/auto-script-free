@@ -1,0 +1,462 @@
+#!/bin/bash
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+CORE_FILE="/usr/local/bin/core-monitor-bot.sh"
+CRON_JOB="/etc/cron.d/auto_monitor_bot"
+
+create_core_script() {
+cat << 'EOF' > "$CORE_FILE"
+#!/bin/bash
+export LC_ALL=C
+
+BOT_TOKEN=$(grep -E "^#bot# " "/etc/bot/.bot.db" 2>/dev/null | awk '{print $2}')
+CHAT_ID=$(grep -E "^#bot# " "/etc/bot/.bot.db" 2>/dev/null | awk '{print $3}')
+DOMAIN=$(cat /etc/xray/domain 2>/dev/null || curl -s ipv4.icanhazip.com 2>/dev/null)
+
+[[ -z "${BOT_TOKEN:-}" || -z "${CHAT_ID:-}" ]] && exit 0
+[[ -z "${DOMAIN:-}" ]] && DOMAIN="UNKNOWN"
+
+NOW_HUMAN="$(date +'%Y-%m-%d %H:%M:%S')"
+NOW_SEC="$(date +%s)"
+
+command -v jq >/dev/null 2>&1 || (apt-get update -y >/dev/null 2>&1 && apt-get install -y jq >/dev/null 2>&1)
+
+send_tele() {
+  local text="$1"
+  if [[ ${#text} -gt 3800 ]]; then
+    text="${text:0:3800}
+... (dipotong karena terlalu panjang)"
+  fi
+  curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+    -d "chat_id=${CHAT_ID}" \
+    --data-urlencode "text=${text}" \
+    -d "parse_mode=HTML" >/dev/null 2>&1
+  sleep 1 # Jeda 1 detik agar Telegram tidak memblokir karena spam (Too Many Requests)
+}
+
+# --- utils: baca angka dari file ---
+read_int_file() {
+  local f="$1" def="${2:-0}"
+  if [[ -f "$f" ]]; then
+    local n
+    n="$(tr -cd '0-9\n' < "$f" 2>/dev/null | head -n 1 | tr -cd '0-9')"
+    [[ -n "$n" ]] && echo "$n" || echo "$def"
+  else
+    echo "$def"
+  fi
+}
+
+bytes_to_gb_int() {
+  local b="$1"
+  [[ "$b" =~ ^[0-9]+$ ]] || b=0
+  if [[ "$b" -le 0 ]]; then
+    echo "0"; return
+  fi
+  echo $(( (b + 1073741823) / 1073741824 ))
+}
+
+# ==========================================
+# SSH / DROPBEAR (Logika Identik dengan member-ssh)
+# ==========================================
+get_ssh_dropbear_online() {
+  declare -A ONLINE_COUNT
+  declare -A DB_USER_BY_PID
+
+  # 1. Ambil sesi SSHD aktif (OpenSSH)
+  while IFS= read -r line; do
+    user="$(sed -n 's/^.*sshd: \([^ @][^@]*\)@.*/\1/p' <<< "$line")"
+    if [[ -n "$user" ]]; then
+      ONLINE_COUNT["$user"]=$(( ${ONLINE_COUNT["$user"]:-0} + 1 ))
+    fi
+  done < <(ps -eo args 2>/dev/null | grep -E 'sshd: .*@' | grep -v grep)
+
+  # 2. Ambil sesi Dropbear aktif dari Journalctl
+  if command -v journalctl >/dev/null 2>&1; then
+    while IFS= read -r line; do
+      if [[ "$line" == *"Password auth succeeded for"* ]]; then
+        pid="$line"
+        pid="${pid#*\[}"
+        pid="${pid%%]*}"
+        user="$(awk -F"'" '{print $2}' <<< "$line")"
+        if [[ -n "$pid" && -n "$user" ]]; then
+          DB_USER_BY_PID["$pid"]="$user"
+        fi
+      fi
+
+      if [[ "$line" == *"Exit ("* ]]; then
+        pid="$line"
+        pid="${pid#*\[}"
+        pid="${pid%%]*}"
+        unset DB_USER_BY_PID["$pid"]
+      fi
+    done < <(journalctl -u dropbear --since "7 days ago" -o cat 2>/dev/null | grep -E 'dropbear\[|Password auth succeeded for|Exit \(')
+  fi
+
+  # 3. Validasi PID dropbear yang benar-benar masih hidup di /proc
+  for pid in "${!DB_USER_BY_PID[@]}"; do
+    if [[ -d "/proc/$pid" ]]; then
+      cmdline="$(tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null)"
+      comm="$(cat /proc/$pid/comm 2>/dev/null)"
+      if [[ "$cmdline" == *dropbear* || "$comm" == *dropbear* ]]; then
+        user="${DB_USER_BY_PID[$pid]}"
+        ONLINE_COUNT["$user"]=$(( ${ONLINE_COUNT["$user"]:-0} + 1 ))
+      fi
+    fi
+  done
+
+  # Bangun Data Output (Format: username|online_count|limit)
+  local total_users=0
+  local lines=""
+
+  # Mencegah error jika array kosong
+  if [[ ${#ONLINE_COUNT[@]} -gt 0 ]]; then
+    for u in "${!ONLINE_COUNT[@]}"; do
+      
+      # KECUALIKAN USER ROOT DARI LAPORAN
+      [[ "$u" == "root" ]] && continue
+
+      cek_login="${ONLINE_COUNT[$u]}"
+      [[ -z "$cek_login" ]] && cek_login=0
+      
+      if [[ $cek_login -gt 0 ]]; then
+        total_users=$((total_users + 1))
+        limit="$(read_int_file "/etc/kyt/limit/ssh/ip/$u" 0)"
+        [[ -z "$limit" ]] && limit=0
+        lines+="${u}|${cek_login}|${limit}\n"
+      fi
+    done
+  fi
+
+  echo "$total_users"
+  echo -e -n "$lines"
+}
+
+# XRAY + quota used/limit
+xray_proto_report() {
+  local proto_dir="$1"
+  local email_prefix="$2"
+  local db_file="/etc/${proto_dir}/.${proto_dir}.db"
+  local access="/var/log/xray/access.log"
+
+  local total=0
+  local lines=""
+  local ACCESS_TAIL=""
+  [[ -f "$access" ]] && ACCESS_TAIL="$(tail -n 5000 "$access" 2>/dev/null)"
+
+  if [[ -f "$db_file" ]]; then
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      user="$(echo "$line" | awk '{print $2}')"
+      [[ -z "${user:-}" ]] && continue
+
+      limit_ip="$(read_int_file "/etc/kyt/limit/${proto_dir}/ip/${user}" 0)"
+
+      active_ips=0
+      if [[ -n "$ACCESS_TAIL" ]]; then
+        active_ips="$(echo "$ACCESS_TAIL" | grep -F "email: ${email_prefix}-${user}" 2>/dev/null | awk '{print $3}' | cut -d: -f1 | sort -u | wc -l)"
+      fi
+      [[ -z "${active_ips:-}" ]] && active_ips=0
+
+      if [[ "$active_ips" -gt 0 ]]; then
+        total=$((total + 1))
+
+        limit_bytes="$(read_int_file "/etc/${proto_dir}/${user}" 0)"
+        used_bytes="$(read_int_file "/etc/kyt/limit/${proto_dir}/${user}" 0)"
+
+        limit_gb="$(bytes_to_gb_int "$limit_bytes")"
+        used_gb="$(bytes_to_gb_int "$used_bytes")"
+
+        if [[ "$limit_bytes" -gt 0 ]]; then
+          q="${used_gb}/${limit_gb}GB"
+        else
+          q="${used_gb}/Unli"
+        fi
+
+        warn=""
+        [[ "$limit_ip" -gt 0 && "$active_ips" -gt "$limit_ip" ]] && warn=" 🚨<b>[OVERLIMIT]</b>"
+
+        lines+="⚡ <code>${user}</code> | IP: ${active_ips}/${limit_ip} | Q: ${q}${warn}
+"
+      fi
+    done < <(grep -E "^(###|#&)" "$db_file" 2>/dev/null)
+  fi
+
+  echo "$total"
+  echo "$lines"
+}
+
+# Noobz
+get_noobz_online() {
+  if ! command -v noobzvpns >/dev/null 2>&1; then echo "0"; echo ""; return; fi
+  info="$(noobzvpns --info-all-user 2>/dev/null || true)"
+  users="$(echo "$info" | grep -E "-> *active" 2>/dev/null | sed 's/^[[:space:]]*+ *//g' | awk '{print $1}' | sort -u)"
+  count="$(echo "$users" | sed '/^$/d' | wc -l | awk '{print $1}')"
+  lines=""
+  if [[ "$count" -gt 0 ]]; then
+    while read -r u; do [[ -n "$u" ]] && lines+="⚡ <code>${u}</code> | <b>ACTIVE</b>
+"; done <<< "$users"
+  fi
+  echo "$count"; echo "$lines"
+}
+
+# ZiVPN
+get_zivpn_online() {
+  local since="5 minutes ago"
+  local j=""
+  j="$(journalctl --no-pager --since "$since" 2>/dev/null | grep -E "zivpn-bin|zivpn" 2>/dev/null || true)"
+  [[ -z "$j" ]] && { echo "0"; echo ""; return; }
+
+  declare -A ipset=()
+  while IFS= read -r line; do
+    if echo "$line" | grep -q "client connected"; then
+      ip="$(echo "$line" | sed -n 's/.*"addr": *"\([0-9.]\+\):[0-9]\+".*/\1/p')"
+      [[ -n "${ip:-}" ]] && ipset["$ip"]=1
+    elif echo "$line" | grep -q "client disconnected"; then
+      ip="$(echo "$line" | sed -n 's/.*"addr": *"\([0-9.]\+\):[0-9]\+".*/\1/p')"
+      [[ -n "${ip:-}" ]] && unset 'ipset[$ip]'
+    fi
+  done <<< "$j"
+
+  count="${#ipset[@]}"
+  lines=""
+  if [[ "$count" -gt 0 ]]; then
+    for ip in "${!ipset[@]}"; do lines+="⚡ <code>${ip}</code>
+"; done
+    lines="$(echo "$lines" | sort)"
+  fi
+  echo "$count"; echo "$lines"
+}
+
+# WireGuard
+get_wg_online() {
+  if ! command -v wg >/dev/null 2>&1; then echo "0"; echo ""; return; fi
+  if ! wg show wg0 >/dev/null 2>&1; then echo "0"; echo ""; return; fi
+  local db="/etc/wireguard/database.json"
+  local count=0
+  local lines=""
+  while read -r pubkey handshake; do
+    [[ "$handshake" =~ ^[0-9]+$ ]] || continue
+    if [[ "$handshake" -gt 0 ]]; then
+      diff=$((NOW_SEC - handshake))
+      if [[ "$diff" -le 180 ]]; then
+        user="$(jq -r --arg pk "$pubkey" '.clients | to_entries[] | select(.value.pubkey == $pk) | .key' "$db" 2>/dev/null | head -n 1)"
+        exp="$(jq -r --arg pk "$pubkey" '.clients | to_entries[] | select(.value.pubkey == $pk) | .value.exp' "$db" 2>/dev/null | head -n 1)"
+        [[ -z "$user" || "$user" == "null" ]] && user="$pubkey"
+        [[ -z "$exp" || "$exp" == "null" ]] && exp="-"
+        lines+="⚡ <code>${user}</code> | HS: ${diff}s | Exp: ${exp}
+"
+        count=$((count + 1))
+      fi
+    fi
+  done < <(wg show wg0 dump 2>/dev/null | tail -n +2 | awk '{print $1, $6}')
+  echo "$count"; echo "$lines"
+}
+
+# ==========================================
+# GATHER DATA & BUILD BUBBLES
+# ==========================================
+
+HEADER_TEXT="📊 <b>LAPORAN CLIENT AKTIF (LIVE)</b> 📊
+🌐 Server: <code>${DOMAIN}</code>
+⏰ Waktu: <code>${NOW_HUMAN}</code>
+
+"
+
+TOTAL_SEMUA=0
+
+# --- 1. SSH / DROPBEAR ---
+ssh_out="$(get_ssh_dropbear_online)"
+ssh_total="$(echo "$ssh_out" | head -n 1)"
+ssh_raw="$(echo "$ssh_out" | tail -n +2)"
+
+if [[ "$ssh_total" -gt 0 ]]; then
+  TOTAL_SEMUA=$((TOTAL_SEMUA + ssh_total))
+  MSG_SSH="${HEADER_TEXT}🟢 <b>SSH/DROPBEAR</b> : <b>${ssh_total}</b>
+"
+  while IFS= read -r row; do
+    [[ -z "$row" ]] && continue
+    u="$(echo "$row" | cut -d'|' -f1)"
+    online="$(echo "$row" | cut -d'|' -f2)"
+    limit="$(echo "$row" | cut -d'|' -f3)"
+
+    limit_str="${limit}"
+    [[ -z "$limit" || "$limit" == "0" ]] && limit_str="No Limit"
+
+    warn=""
+    if [[ "$limit_str" != "No Limit" && "$online" =~ ^[0-9]+$ && "$limit" =~ ^[0-9]+$ ]]; then
+      [[ "$online" -gt "$limit" ]] && warn=" 🚨<b>[OVERLIMIT]</b>"
+    fi
+
+    if [[ "$limit_str" == "No Limit" ]]; then
+       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/No Limit) ${warn}
+"
+    else
+       MSG_SSH+="⚡ <code>${u}</code> | ONLINE (<b>${online}</b>/${limit_str} IP) ${warn}
+"
+    fi
+  done <<< "$ssh_raw"
+  send_tele "$MSG_SSH"
+fi
+
+# --- 2. XRAY PROTOCOL (Digabung 1 Bubble) ---
+vless_out="$(xray_proto_report "vless" "vless")"
+vless_total="$(echo "$vless_out" | head -n 1)"
+vless_lines="$(echo "$vless_out" | tail -n +2)"
+
+vmess_out="$(xray_proto_report "vmess" "vmess")"
+vmess_total="$(echo "$vmess_out" | head -n 1)"
+vmess_lines="$(echo "$vmess_out" | tail -n +2)"
+
+trojan_out="$(xray_proto_report "trojan" "trojan")"
+trojan_total="$(echo "$trojan_out" | head -n 1)"
+trojan_lines="$(echo "$trojan_out" | tail -n +2)"
+
+ssr_out="$(xray_proto_report "shadowsocks" "ss")"
+ssr_total="$(echo "$ssr_out" | head -n 1)"
+ssr_lines="$(echo "$ssr_out" | tail -n +2)"
+
+xray_total=$((vless_total + vmess_total + trojan_total + ssr_total))
+
+if [[ "$xray_total" -gt 0 ]]; then
+  TOTAL_SEMUA=$((TOTAL_SEMUA + xray_total))
+  MSG_XRAY="${HEADER_TEXT}🛡 <b>XRAY PROTOCOLS</b> : <b>${xray_total}</b>
+
+🟣 <b>Vless</b> : <b>${vless_total}</b>
+"
+  [[ "$vless_total" -gt 0 ]] && MSG_XRAY+="${vless_lines}
+"
+  MSG_XRAY+="🟣 <b>Vmess</b> : <b>${vmess_total}</b>
+"
+  [[ "$vmess_total" -gt 0 ]] && MSG_XRAY+="${vmess_lines}
+"
+  MSG_XRAY+="🟣 <b>Trojan</b> : <b>${trojan_total}</b>
+"
+  [[ "$trojan_total" -gt 0 ]] && MSG_XRAY+="${trojan_lines}
+"
+  MSG_XRAY+="🟣 <b>SS-R</b> : <b>${ssr_total}</b>
+"
+  [[ "$ssr_total" -gt 0 ]] && MSG_XRAY+="${ssr_lines}
+"
+  send_tele "$MSG_XRAY"
+fi
+
+# --- 3. NOOBZ VPN ---
+noobz_out="$(get_noobz_online)"
+noobz_total="$(echo "$noobz_out" | head -n 1)"
+noobz_lines="$(echo "$noobz_out" | tail -n +2)"
+
+if [[ "$noobz_total" -gt 0 ]]; then
+  TOTAL_SEMUA=$((TOTAL_SEMUA + noobz_total))
+  MSG_NOOBZ="${HEADER_TEXT}🟡 <b>Noobz VPN</b> : <b>${noobz_total}</b>
+${noobz_lines}
+"
+  send_tele "$MSG_NOOBZ"
+fi
+
+# --- 4. ZIVPN ---
+zivpn_out="$(get_zivpn_online)"
+zivpn_total="$(echo "$zivpn_out" | head -n 1)"
+zivpn_lines="$(echo "$zivpn_out" | tail -n +2)"
+
+if [[ "$zivpn_total" -gt 0 ]]; then
+  TOTAL_SEMUA=$((TOTAL_SEMUA + zivpn_total))
+  MSG_ZIVPN="${HEADER_TEXT}🟠 <b>ZiVPN</b> : <b>${zivpn_total}</b>
+${zivpn_lines}
+"
+  send_tele "$MSG_ZIVPN"
+fi
+
+# --- 5. WIREGUARD ---
+wg_out="$(get_wg_online)"
+wg_total="$(echo "$wg_out" | head -n 1)"
+wg_lines="$(echo "$wg_out" | tail -n +2)"
+
+if [[ "$wg_total" -gt 0 ]]; then
+  TOTAL_SEMUA=$((TOTAL_SEMUA + wg_total))
+  MSG_WG="${HEADER_TEXT}🔵 <b>Wireguard</b> : <b>${wg_total}</b>
+${wg_lines}
+"
+  send_tele "$MSG_WG"
+fi
+
+# --- 6. JIKA SERVER HENING / TIDAK ADA SAMA SEKALI ---
+if [[ "$TOTAL_SEMUA" -eq 0 ]]; then
+  MSG_HENING="${HEADER_TEXT}🔇 <b>SERVER HENING</b>
+Tidak ada client yang terhubung saat ini."
+  send_tele "$MSG_HENING"
+fi
+
+exit 0
+EOF
+
+chmod +x "$CORE_FILE"
+}
+
+set_cron() {
+  local mins=$1
+  create_core_script
+  {
+    echo "SHELL=/bin/sh"
+    echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
+    echo "# Auto Monitoring Bot (managed by auto-notif-tele-monitor)"
+    echo "*/$mins * * * * root $CORE_FILE >/dev/null 2>&1"
+  } > "$CRON_JOB"
+  (service cron restart >/dev/null 2>&1 || systemctl restart cron >/dev/null 2>&1 || true)
+  echo -e "${GREEN}✅ Auto Monitor berhasil diaktifkan! Notifikasi dikirim tiap $mins Menit.${NC}"
+  sleep 2
+}
+
+stop_cron() {
+  rm -f "$CRON_JOB"
+  (service cron restart >/dev/null 2>&1 || systemctl restart cron >/dev/null 2>&1 || true)
+  echo -e "${RED}🛑 Auto Monitor dimatikan.${NC}"
+  sleep 2
+}
+
+while true; do
+  clear
+  echo -e "${CYAN}=======================================${NC}"
+  echo -e "${YELLOW}       BOT TELEGRAM AUTO MONITORING      ${NC}"
+  echo -e "${CYAN}=======================================${NC}"
+
+  if [ -f "$CRON_JOB" ]; then
+    interval=$(awk 'NR==4{print $1}' "$CRON_JOB" 2>/dev/null | cut -d'/' -f2)
+    [[ -z "$interval" ]] && interval="?"
+    echo -e " Status : ${GREEN}[ AKTIF ]${NC} - Tiap ${interval} Menit"
+  else
+    echo -e " Status : ${RED}[ MATI ]${NC}"
+  fi
+
+  echo -e "---------------------------------------"
+  echo -e " [1] Aktifkan tiap 5 Menit"
+  echo -e " [2] Aktifkan tiap 15 Menit"
+  echo -e " [3] Aktifkan tiap 30 Menit"
+  echo -e " [4] Aktifkan tiap 1 Jam"
+  echo -e " [5] Matikan Auto Monitor"
+  echo -e " [6] Test Kirim Notif Sekarang (Cek Manual)"
+  echo -e " [0] Kembali ke Menu Utama"
+  echo -e "${CYAN}=======================================${NC}"
+  read -p " Pilih opsi: " opt
+
+  case $opt in
+    1) set_cron 5 ;;
+    2) set_cron 15 ;;
+    3) set_cron 30 ;;
+    4) set_cron 60 ;;
+    5) stop_cron ;;
+    6)
+      create_core_script
+      echo -e "${YELLOW}Memeriksa dan mengirim laporan ke Telegram...${NC}"
+      bash "$CORE_FILE"
+      echo -e "${GREEN}Selesai! Cek Telegram Anda.${NC}"
+      sleep 2
+      ;;
+    0) exit 0 ;;
+    *) echo -e "${RED}Pilihan tidak valid!${NC}"; sleep 1 ;;
+  esac
+done

@@ -357,6 +357,11 @@ wget ${REPO}fix-error/setup-audit-pro.sh && chmod +x setup-audit-pro.sh && ./set
 clear
 }
 
+res17() {
+wget ${REPO}install/install_service.quota.sh && chmod +x install_service.quota.sh && ./install_service.quota.sh
+clear
+}
+
 if [[ $(cat /etc/os-release | grep -w ID | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/ID//g') == "ubuntu" ]]; then
 echo -e "${green}Setup nginx For OS Is $(cat /etc/os-release | grep -w PRETTY_NAME | head -n1 | sed 's/=//g' | sed 's/"//g' | sed 's/PRETTY_NAME//g')${NC}"
 setup_ubuntu
@@ -415,6 +420,9 @@ fun_bar 'res15'
 
 echo -e "SET NOTIFI SERVICE"
 fun_bar 'res16'
+
+echo -e "SET Service Quota Xray"
+fun_bar 'res17'
 }
 
 function setup_ubuntu(){
@@ -465,6 +473,9 @@ res15
 
 echo -e "SET NOTIFI SERVICE"
 res16
+
+echo -e "SET Service Quota Xray"
+res17
 }
 
 # Tentukan nilai baru yang diinginkan untuk fs.file-max
