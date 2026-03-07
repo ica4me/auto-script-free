@@ -1,0 +1,22 @@
+journalctl --since "2 hours ago" -o cat | awk '
+/Password auth succeeded for/ {
+  line=$0
+  pid=line
+  sub(/^.*\[/,"",pid)
+  sub(/\].*$/,"",pid)
+  n=split(line,a,"'\''")
+  user=a[2]
+  online[pid]=user
+}
+/Exit \(/ {
+  line=$0
+  pid=line
+  sub(/^.*\[/,"",pid)
+  sub(/\].*$/,"",pid)
+  delete online[pid]
+}
+END {
+  c=0
+  for (pid in online) if (online[pid]=="lala") c++
+  print c
+}'

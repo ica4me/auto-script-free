@@ -1,0 +1,33 @@
+journalctl --since "2 hours ago" -o cat | awk '
+/Password auth succeeded for/ {
+  line=$0
+
+  pid=line
+  sub(/^.*\[/,"",pid)
+  sub(/\].*$/,"",pid)
+
+  n=split(line,a,"'\''")
+  user=a[2]
+
+  online[pid]=user
+}
+
+/Exit \(/ {
+  line=$0
+
+  pid=line
+  sub(/^.*\[/,"",pid)
+  sub(/\].*$/,"",pid)
+
+  delete online[pid]
+}
+
+END {
+  print "=== USER TUNNEL ONLINE ==="
+  found=0
+  for (pid in online) {
+    printf "PID: %s | USER: %s\n", pid, online[pid]
+    found=1
+  }
+  if (!found) print "Tidak ada user tunnel yang sedang online."
+}'

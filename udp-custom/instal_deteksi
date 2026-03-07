@@ -261,12 +261,12 @@ OOMScoreAdjust=-1000
 WantedBy=multi-user.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable "$SERVICE_NAME"
-  systemctl restart "$SERVICE_NAME"
+  #systemctl daemon-reload
+  #systemctl enable "$SERVICE_NAME"
+  #systemctl restart "$SERVICE_NAME"
   
-  echo "✅ Polaris Ultra-Fast Auto-Heal AKTIF!"
-  echo "Salinan konfigurasi tersimpan di: $BACKUP_HAPROXY"
+  #echo "✅ Polaris Ultra-Fast Auto-Heal AKTIF!"
+  #echo "Salinan konfigurasi tersimpan di: $BACKUP_HAPROXY"
 }
 
 set_cron_keamanan
