@@ -9,6 +9,9 @@
 # Tujuan:
 # - jump ke WG_NAT_WG0 selalu di PREROUTING urutan #1
 # - INPUT udp/<WG_PORT> selalu di urutan #1
+# - rapikan legacy UDP redirect:
+#   hapus 1:65535 -> 36712 jika ada
+#   pasang 1:65533 -> 36712 jika belum ada
 #
 # Pemakaian:
 #   bash setup_wg.sh
@@ -28,6 +31,10 @@ NC='\033[0m'
 WG_PORT="${1:-65535}"
 PUB_IF_INPUT="${2:-}"
 WG_CHAIN="WG_NAT_WG0"
+
+LEGACY_UDP_TO_PORT="36712"
+LEGACY_UDP_OLD_RANGE="1:65535"
+LEGACY_UDP_NEW_RANGE="1:65533"
 
 WG_PRIORITY_BIN="/usr/local/sbin/wg-priority-top"
 WG_PRIORITY_SERVICE="/etc/systemd/system/wg-priority-top.service"
@@ -65,6 +72,29 @@ if ! command -v iptables >/dev/null 2>&1; then
   apt install -y iptables iproute2 >/dev/null 2>&1 || true
 fi
 
+# Rapikan legacy UDP redirect rule sekarang juga
+echo -e "${GREEN}[+]${NC} Memeriksa legacy UDP redirect rule..."
+
+# Hapus rule lama dengan -i <PUB_IF> jika ada
+if iptables -t nat -C PREROUTING -i "${PUB_IF}" -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  echo -e "${YELLOW}[!]${NC} Rule lama ditemukan (dengan interface), menghapus..."
+  iptables -t nat -D PREROUTING -i "${PUB_IF}" -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+fi
+
+# Hapus rule lama tanpa -i jika ada
+if iptables -t nat -C PREROUTING -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  echo -e "${YELLOW}[!]${NC} Rule lama ditemukan (tanpa interface), menghapus..."
+  iptables -t nat -D PREROUTING -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+fi
+
+# Tambahkan rule baru jika belum ada
+if ! iptables -t nat -C PREROUTING -i "${PUB_IF}" -p udp --dport "${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  echo -e "${GREEN}[+]${NC} Menambahkan rule baru udp ${LEGACY_UDP_NEW_RANGE} -> ${LEGACY_UDP_TO_PORT}"
+  iptables -t nat -I PREROUTING 2 -i "${PUB_IF}" -p udp --dport "${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+else
+  echo -e "${GREEN}[+]${NC} Rule baru sudah ada, skip."
+fi
+
 # =========================================================
 # 1) Buat helper script /usr/local/sbin/wg-priority-top
 # =========================================================
@@ -78,6 +108,10 @@ PUB_IF="\${1:-\$(ip -4 route list default 2>/dev/null | awk '{print \$5}' | head
 WG_PORT="\${2:-${WG_PORT}}"
 WG_CHAIN="${WG_CHAIN}"
 
+LEGACY_UDP_TO_PORT="${LEGACY_UDP_TO_PORT}"
+LEGACY_UDP_OLD_RANGE="${LEGACY_UDP_OLD_RANGE}"
+LEGACY_UDP_NEW_RANGE="${LEGACY_UDP_NEW_RANGE}"
+
 [ -n "\${PUB_IF}" ] || exit 0
 
 # Pastikan chain khusus WireGuard ada
@@ -88,6 +122,21 @@ while iptables -t nat -C PREROUTING -i "\${PUB_IF}" -j "\${WG_CHAIN}" >/dev/null
   iptables -t nat -D PREROUTING -i "\${PUB_IF}" -j "\${WG_CHAIN}" >/dev/null 2>&1 || true
 done
 iptables -t nat -I PREROUTING 1 -i "\${PUB_IF}" -j "\${WG_CHAIN}"
+
+# Hapus rule lama dengan interface jika ada
+if iptables -t nat -C PREROUTING -i "\${PUB_IF}" -p udp --dport "\${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  iptables -t nat -D PREROUTING -i "\${PUB_IF}" -p udp --dport "\${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+fi
+
+# Hapus rule lama tanpa interface jika ada
+if iptables -t nat -C PREROUTING -p udp --dport "\${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  iptables -t nat -D PREROUTING -p udp --dport "\${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+fi
+
+# Pastikan rule baru berada tepat di bawah jump WG chain
+if ! iptables -t nat -C PREROUTING -i "\${PUB_IF}" -p udp --dport "\${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+  iptables -t nat -I PREROUTING 2 -i "\${PUB_IF}" -p udp --dport "\${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"\${LEGACY_UDP_TO_PORT}"
+fi
 
 # Pastikan rule INPUT udp/WG_PORT selalu paling atas
 while iptables -C INPUT -p udp --dport "\${WG_PORT}" -j ACCEPT >/dev/null 2>&1; do
@@ -151,5 +200,7 @@ echo -e "${WH}Timer dibuat  : ${YELLOW}${WG_PRIORITY_TIMER}${NC}"
 echo -e "${WH}Port WG       : ${YELLOW}${WG_PORT}${NC}"
 echo -e "${WH}Interface     : ${YELLOW}${PUB_IF}${NC}"
 echo -e "${WH}Chain NAT     : ${YELLOW}${WG_CHAIN}${NC}"
+echo -e "${WH}Legacy UDP lama dihapus jika ada: ${YELLOW}${LEGACY_UDP_OLD_RANGE}${NC} -> ${YELLOW}${LEGACY_UDP_TO_PORT}${NC}"
+echo -e "${WH}Legacy UDP aktif: ${YELLOW}${LEGACY_UDP_NEW_RANGE}${NC} -> ${YELLOW}${LEGACY_UDP_TO_PORT}${NC}"
 echo -e "${WH}Status timer  : ${YELLOW}systemctl status wg-priority-top.timer${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
