@@ -117,4 +117,9 @@ echo -e " [INFO] File download and setup completed successfully. Version: $serve
 # -----------------------------
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-usr-local-sbin.sh | bash >/dev/null 2>&1
 
+# -----------------------------
+# Service Monitor Client ZIVPN
+# -----------------------------
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/install-udpzi-monitor.sh | bash >/dev/null 2>&1
+
 exit 0
