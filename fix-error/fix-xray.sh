@@ -85,7 +85,7 @@ cat > /etc/xray/config.json << 'EOF'
       "streamSettings": {
         "network": "ws",
         "wsSettings": {
-          "path": "/trojan-ws"
+          "path": "/trojan"
         }
       }
     },
