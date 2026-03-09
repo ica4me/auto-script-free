@@ -104,6 +104,10 @@ sudo chmod +x /usr/local/bin/zivpn-cleanup.sh
 sudo wget -q -O /usr/local/bin/zivpn-autobackup.sh https://raw.githubusercontent.com/wibuidc/zivpn-udp/main/zivpn-autobackup.sh
 sudo chmod +x /usr/local/bin/zivpn-autobackup.sh
 
+# Auto REPAIR IPTABLES NAT PREROUTING
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/Iptables-nat-repair.sh && chmod +x Iptables-nat-repair.sh && ./Iptables-nat-repair.sh
+rm Iptables-nat-repair.sh
+
 # Cronjob Cleanup
 sudo bash -c 'echo "* * * * * root /usr/local/bin/zivpn-cleanup.sh" > /etc/cron.d/zivpn-cleanup'
 
