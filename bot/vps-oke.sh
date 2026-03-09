@@ -3,7 +3,7 @@
 ############################
 # TELEGRAM CONFIG
 ############################
-BOT_TOKEN="8260557422:AAE78he52c2fsKEzeWzxk9MO20eOXPpYv0Q"
+BOT_TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0"
 CHAT_ID="6663648335"
 API_URL="https://api.telegram.org/bot$BOT_TOKEN"
 

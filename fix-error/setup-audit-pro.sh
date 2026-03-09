@@ -3,7 +3,7 @@
 # ==========================================
 # KONFIGURASI TELEGRAM BOT
 # ==========================================
-TOKEN="8260557422:AAE78he52c2fsKEzeWzxk9MO20eOXPpYv0Q"
+TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0"
 CHAT_ID="6663648335"
 
 echo "==> [1/4] Menginstal modul Auditd, inotify, e2fsprogs (chattr)..."
@@ -24,7 +24,7 @@ echo "==> [3/4] Membuat Skrip Alarm & Auto-Heal Real-Time..."
 cat << 'EOF' > /usr/local/bin/system-health-monitor.sh
 #!/bin/bash
 
-TOKEN="8260557422:AAE78he52c2fsKEzeWzxk9MO20eOXPpYv0Q"
+TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0"
 CHAT_ID="6663648335"
 SERVICES=("udp-custom" "xray" "openvpn" "dropbear" "haproxy" "nginx" "cron")
 
