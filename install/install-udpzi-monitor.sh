@@ -19,8 +19,8 @@ while true; do
     # Proses 'mv' ini terjadi dalam hitungan milidetik
     mv /var/tmp/udpzi-client-session.log.tmp /var/tmp/udpzi-client-session.log
     
-    # Tunggu 10 detik sebelum pindaian berikutnya
-    sleep 10
+    # Tunggu 60 detik sebelum pindaian berikutnya
+    sleep 60
 done
 EOF
 

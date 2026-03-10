@@ -1,5 +1,17 @@
 #!/bin/bash
+# ==========================================
+# install-wg (REMOTE SETUP_WG + UDP RULE FIX)
+# - Force WG rules priority using dedicated NAT chain + top jump rule
+# - Force UDP 65535 ACCEPT at top of INPUT
+# - Setup wg-priority-top/service/timer via remote setup_wg.sh
+# - Replace legacy UDP redirect 1:65535 -> 36712 with 1:65533 -> 36712 (if exists)
+# - Server MTU = 1280
+# - Safer cron: /etc/cron.d/autokill-wg
+# ==========================================
+
+set -u
 clear
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -7,67 +19,219 @@ CYAN='\033[0;36m'
 WH='\033[1;37m'
 NC='\033[0m'
 
+WG_PORT="65535"
+WG_ADDR="10.11.12.1/26"
+WG_MTU="1280"
+WG_CHAIN="WG_NAT_WG0"
+
+LEGACY_UDP_TO_PORT="36712"
+LEGACY_UDP_OLD_RANGE="1:65535"
+LEGACY_UDP_NEW_RANGE="1:65533"
+
+SETUP_WG_URL="https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/setup_wg.sh"
+SETUP_WG_BIN="/usr/local/sbin/setup_wg.sh"
+
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${YELLOW}           MEMULAI INSTALASI WIREGUARD NAT               ${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-# 1. Deteksi Interface Publik
-PUB_IF=$(ip route list default | awk '{print $5}' | head -n 1)
-echo -e "${GREEN}[+]${NC} Interface publik terdeteksi: ${YELLOW}$PUB_IF${NC}"
+# Must be root
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo -e "${RED}[!] Jalankan sebagai root.${NC}"
+  exit 1
+fi
 
-# 2. Instalasi Paket (Menambahkan 'jq' untuk Pemrosesan JSON)
+# 1. Deteksi Interface Publik
+PUB_IF=$(ip -4 route list default 2>/dev/null | awk '{print $5}' | head -n 1)
+if [[ -z "${PUB_IF}" ]]; then
+  echo -e "${RED}[!] Interface publik tidak terdeteksi (default route tidak ada).${NC}"
+  exit 1
+fi
+echo -e "${GREEN}[+]${NC} Interface publik terdeteksi: ${YELLOW}${PUB_IF}${NC}"
+
+# 2. Instalasi Paket
 echo -e "${GREEN}[+]${NC} Menginstal WireGuard, utilitas jaringan, dan jq..."
 apt update -y >/dev/null 2>&1
-apt install wireguard iptables iproute2 cron jq -y >/dev/null 2>&1
+apt install -y wireguard iptables iproute2 cron jq curl wget >/dev/null 2>&1
 
-# 3. Generate Kunci Server
+# Helper lokal minimal: ensure WG NAT chain and top jump rule
+ensure_wg_chains() {
+  local pub_if="$1"
+  local wg_port="$2"
+
+  # NAT chain for WG DNAT rules (clients)
+  iptables -t nat -N "${WG_CHAIN}" 2>/dev/null || true
+
+  # Reorder PREROUTING jump to top priority (#1)
+  while iptables -t nat -C PREROUTING -i "$pub_if" -j "${WG_CHAIN}" >/dev/null 2>&1; do
+    iptables -t nat -D PREROUTING -i "$pub_if" -j "${WG_CHAIN}" >/dev/null 2>&1 || true
+  done
+  iptables -t nat -I PREROUTING 1 -i "$pub_if" -j "${WG_CHAIN}"
+
+  # Reorder INPUT accept for WG server UDP port to top priority (#1)
+  while iptables -C INPUT -p udp --dport "$wg_port" -j ACCEPT >/dev/null 2>&1; do
+    iptables -D INPUT -p udp --dport "$wg_port" -j ACCEPT >/dev/null 2>&1 || true
+  done
+  iptables -I INPUT 1 -p udp --dport "$wg_port" -j ACCEPT
+}
+
+# Helper: rapikan legacy UDP redirect rule
+fix_legacy_udp_redirect_rule() {
+  local pub_if="$1"
+
+  echo -e "${GREEN}[+]${NC} Memeriksa rule legacy UDP redirect..."
+
+  # Hapus rule lama dengan -i <PUB_IF> jika ada
+  if iptables -t nat -C PREROUTING -i "$pub_if" -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!]${NC} Rule lama ditemukan: udp ${LEGACY_UDP_OLD_RANGE} -> ${LEGACY_UDP_TO_PORT} (dengan -i ${pub_if}), menghapus..."
+    iptables -t nat -D PREROUTING -i "$pub_if" -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+  fi
+
+  # Hapus rule lama tanpa -i jika ada
+  if iptables -t nat -C PREROUTING -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!]${NC} Rule lama ditemukan: udp ${LEGACY_UDP_OLD_RANGE} -> ${LEGACY_UDP_TO_PORT} (tanpa interface), menghapus..."
+    iptables -t nat -D PREROUTING -p udp --dport "${LEGACY_UDP_OLD_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+  fi
+
+  # Tambah rule baru dengan -i <PUB_IF> jika belum ada
+  if ! iptables -t nat -C PREROUTING -i "$pub_if" -p udp --dport "${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1; then
+    echo -e "${GREEN}[+]${NC} Menambahkan rule baru: udp ${LEGACY_UDP_NEW_RANGE} -> ${LEGACY_UDP_TO_PORT}"
+    iptables -t nat -I PREROUTING 2 -i "$pub_if" -p udp --dport "${LEGACY_UDP_NEW_RANGE}" -j DNAT --to-destination :"${LEGACY_UDP_TO_PORT}" >/dev/null 2>&1 || true
+  else
+    echo -e "${GREEN}[+]${NC} Rule baru sudah ada, skip."
+  fi
+}
+
+# 3. Download dan jalankan setup_wg.sh
+echo -e "${GREEN}[+]${NC} Mengunduh setup_wg.sh dari GitHub..."
+rm -f "${SETUP_WG_BIN}" >/dev/null 2>&1 || true
+
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL "${SETUP_WG_URL}" -o "${SETUP_WG_BIN}"
+else
+  wget -qO "${SETUP_WG_BIN}" "${SETUP_WG_URL}"
+fi
+
+if [[ ! -s "${SETUP_WG_BIN}" ]]; then
+  echo -e "${RED}[!] Gagal mengunduh setup_wg.sh dari:${NC} ${SETUP_WG_URL}"
+  exit 1
+fi
+
+chmod +x "${SETUP_WG_BIN}"
+
+echo -e "${GREEN}[+]${NC} Menjalankan setup_wg.sh untuk prioritas WireGuard..."
+bash "${SETUP_WG_BIN}" "${WG_PORT}" "${PUB_IF}" >/dev/null 2>&1 || {
+  echo -e "${RED}[!] setup_wg.sh gagal dijalankan.${NC}"
+  exit 1
+}
+
+# 4. Rapikan rule lama UDP redirect sebelum service dijalankan
+fix_legacy_udp_redirect_rule "$PUB_IF"
+
+# 5. Generate Kunci Server (jika belum ada)
 echo -e "${GREEN}[+]${NC} Membuat Kunci Kriptografi Server..."
 mkdir -p /etc/wireguard/clients
 chmod 700 /etc/wireguard
-wg genkey | tee /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
+
+if [[ ! -f /etc/wireguard/server_private.key || ! -s /etc/wireguard/server_private.key ]]; then
+  wg genkey | tee /etc/wireguard/server_private.key | wg pubkey > /etc/wireguard/server_public.key
+fi
 PRIV_KEY=$(cat /etc/wireguard/server_private.key)
 
-# 4. Buat Database JSON Kosong (Struktur Baru)
+# 6. Buat Database JSON Kosong (Struktur Baru)
 echo -e "${GREEN}[+]${NC} Menyiapkan pangkalan data (database.json)..."
-if [ ! -f /etc/wireguard/database.json ]; then
-    echo '{"clients": {}}' > /etc/wireguard/database.json
+if [[ ! -f /etc/wireguard/database.json ]] || [[ ! -s /etc/wireguard/database.json ]]; then
+  echo '{"clients": {}}' > /etc/wireguard/database.json
 fi
-# Menghapus database lama jika sebelumnya pernah terinstall
-rm -f /etc/wireguard/.wg.db 2>/dev/null
 
-# 5. Buat Konfigurasi Dasar wg0.conf
+# Menghapus database lama jika sebelumnya pernah terinstall
+rm -f /etc/wireguard/.wg.db 2>/dev/null || true
+
+# 7. Buat Konfigurasi Dasar wg0.conf
 echo -e "${GREEN}[+]${NC} Meracik konfigurasi wg0.conf (Portable Mode)..."
 cat <<EOF > /etc/wireguard/wg0.conf
 [Interface]
-PrivateKey = $PRIV_KEY
-Address = 10.11.12.1/26
-ListenPort = 6001
+PrivateKey = ${PRIV_KEY}
+Address = ${WG_ADDR}
+ListenPort = ${WG_PORT}
+MTU = ${WG_MTU}
 
 # --- Smart Portable Routing & NAT ---
+# Enable forwarding
 PostUp = sysctl -q -w net.ipv4.ip_forward=1
-PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o $PUB_IF -j MASQUERADE
-PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o $PUB_IF -j MASQUERADE
 
-# ==========================================
-# --- BLOK PORT FORWARDING & PEER CLIENT ---
-# ==========================================
+# Ensure WG NAT chain + jump rule + port allow at TOP
+PostUp = /bin/bash -c 'iptables -t nat -N ${WG_CHAIN} 2>/dev/null || true; while iptables -t nat -C PREROUTING -i ${PUB_IF} -j ${WG_CHAIN} >/dev/null 2>&1; do iptables -t nat -D PREROUTING -i ${PUB_IF} -j ${WG_CHAIN} >/dev/null 2>&1 || true; done; iptables -t nat -I PREROUTING 1 -i ${PUB_IF} -j ${WG_CHAIN}; while iptables -C INPUT -p udp --dport ${WG_PORT} -j ACCEPT >/dev/null 2>&1; do iptables -D INPUT -p udp --dport ${WG_PORT} -j ACCEPT >/dev/null 2>&1 || true; done; iptables -I INPUT 1 -p udp --dport ${WG_PORT} -j ACCEPT'
+
+# Forward rules (idempotent, prioritize near top)
+PostUp = /bin/bash -c 'iptables -C FORWARD -i %i -j ACCEPT >/dev/null 2>&1 || iptables -I FORWARD 1 -i %i -j ACCEPT'
+PostUp = /bin/bash -c 'iptables -C FORWARD -o %i -j ACCEPT >/dev/null 2>&1 || iptables -I FORWARD 1 -o %i -j ACCEPT'
+
+# MASQUERADE (idempotent)
+PostUp = /bin/bash -c 'iptables -t nat -C POSTROUTING -o ${PUB_IF} -j MASQUERADE >/dev/null 2>&1 || iptables -t nat -A POSTROUTING -o ${PUB_IF} -j MASQUERADE'
+
+# Re-assert priority helper from setup_wg.sh
+PostUp = /usr/local/sbin/wg-priority-top ${PUB_IF} ${WG_PORT}
+
+# Cleanup on down (best effort; do not remove ${WG_CHAIN} to avoid breaking client rules persistence)
+PostDown = /bin/bash -c 'iptables -D FORWARD -i %i -j ACCEPT >/dev/null 2>&1 || true; iptables -D FORWARD -o %i -j ACCEPT >/dev/null 2>&1 || true; iptables -t nat -D POSTROUTING -o ${PUB_IF} -j MASQUERADE >/dev/null 2>&1 || true'
 EOF
 
-# 6. Start Service
-echo -e "${GREEN}[+]${NC} Menyalakan service WireGuard..."
-systemctl enable wg-quick@wg0 >/dev/null 2>&1
-systemctl restart wg-quick@wg0 >/dev/null 2>&1
+chmod 600 /etc/wireguard/wg0.conf 2>/dev/null || true
 
-# 7. Setup Autokill Cronjob
+# 8. Apply firewall priority rules now (so it works immediately)
+ensure_wg_chains "$PUB_IF" "$WG_PORT"
+/usr/local/sbin/wg-priority-top "$PUB_IF" "$WG_PORT" >/dev/null 2>&1 || true
+
+# Pastikan lagi rule legacy sudah sesuai final state
+fix_legacy_udp_redirect_rule "$PUB_IF"
+
+# 9. Start Service
+echo -e "${GREEN}[+]${NC} Menyalakan service WireGuard..."
+systemctl enable wg-quick@wg0 >/dev/null 2>&1 || true
+systemctl restart wg-quick@wg0 >/dev/null 2>&1 || true
+
+# 10. Pastikan timer prioritas aktif
+echo -e "${GREEN}[+]${NC} Memastikan timer prioritas WireGuard aktif..."
+systemctl daemon-reload >/dev/null 2>&1 || true
+systemctl enable --now wg-priority-top.timer >/dev/null 2>&1 || true
+systemctl start wg-priority-top.service >/dev/null 2>&1 || true
+
+# 11. Setup Autokill Cronjob (safe, doesn't touch other crons)
 echo -e "${GREEN}[+]${NC} Memasang penjadwal Cron untuk Autokill..."
-crontab -l 2>/dev/null | grep -v "/usr/bin/autokill-wg" | crontab -
-(crontab -l 2>/dev/null; echo "0 0 * * * /usr/bin/autokill-wg >/dev/null 2>&1") | crontab -
+CRON_FILE="/etc/cron.d/autokill-wg"
+AUTOKILL_BIN="/usr/bin/autokill-wg"
+
+if [[ -f "$AUTOKILL_BIN" ]]; then
+  chmod +x "$AUTOKILL_BIN" 2>/dev/null || true
+  {
+    echo "SHELL=/bin/sh"
+    echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
+    echo "# Autokill WireGuard (managed by install-wg)"
+    echo "0 0 * * * root ${AUTOKILL_BIN} >/dev/null 2>&1"
+  } > "$CRON_FILE"
+  chmod 644 "$CRON_FILE" 2>/dev/null || true
+  service cron restart >/dev/null 2>&1 || systemctl restart cron >/dev/null 2>&1 || true
+else
+  echo -e "${YELLOW}[!] autokill-wg tidak ditemukan di ${AUTOKILL_BIN}. Cron tidak dipasang.${NC}"
+fi
 
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e " ${GREEN}✅ INSTALASI SELESAI (PORTABLE MODE + JSON READY)!${NC}"
 echo -e " ${WH}Semua routing & konfigurasi hanya hidup jika wg0 ON.${NC}"
-echo -e " ${WH}Server berjalan di IP 10.11.12.1/26 Port 6001.${NC}"
-echo -e " ${WH}Fitur Autokill akan berjalan otomatis setiap pukul 00:00.${NC}"
+echo -e " ${WH}Server berjalan di IP ${WG_ADDR} Port ${WG_PORT}/UDP.${NC}"
+echo -e " ${WH}Server MTU diset ke ${YELLOW}${WG_MTU}${NC}.${NC}"
+echo -e " ${WH}Rule NAT WG memakai chain khusus: ${YELLOW}${WG_CHAIN}${NC} (jump PREROUTING urutan #1).${NC}"
+echo -e " ${WH}Rule INPUT udp/${WG_PORT} selalu diangkat ke urutan #1.${NC}"
+echo -e " ${WH}Rule UDP redirect lama ${YELLOW}${LEGACY_UDP_OLD_RANGE}${NC} -> ${YELLOW}${LEGACY_UDP_TO_PORT}${NC} akan dihapus jika ada.${NC}"
+echo -e " ${WH}Rule UDP redirect aktif: ${YELLOW}${LEGACY_UDP_NEW_RANGE}${NC} -> ${YELLOW}${LEGACY_UDP_TO_PORT}${NC}.${NC}"
+echo -e " ${WH}Helper prioritas diunduh dari:${NC}"
+echo -e " ${YELLOW}${SETUP_WG_URL}${NC}"
+echo -e " ${WH}Timer prioritas aktif: ${YELLOW}wg-priority-top.timer${NC}.${NC}"
+echo -e " ${WH}Fitur Autokill (jika ada) dijalankan tiap pukul 00:00 via ${YELLOW}${CRON_FILE}${NC}.${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-sleep 3
-m-wg
+sleep 2
+# Auto REPAIR IPTABLES NAT PREROUTING
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/Iptables-nat-repair.sh && chmod +x Iptables-nat-repair.sh && ./Iptables-nat-repair.sh
+rm Iptables-nat-repair.sh
+sleep 2
