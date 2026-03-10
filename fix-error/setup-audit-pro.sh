@@ -215,7 +215,14 @@ mv "$TMP_RULES" "$AUDIT_RULES_FILE"
 chmod 640 "$AUDIT_RULES_FILE"
 
 systemctl enable auditd >/dev/null 2>&1 || true
-augenrules --load
+
+if ! augenrules --load; then
+    rc=$?
+    echo "WARN: augenrules --load exit code $rc"
+    echo "INFO: isi rule aktif saat ini:"
+    auditctl -l || true
+fi
+
 systemctl restart auditd || true
 
 # =========================
