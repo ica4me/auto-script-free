@@ -1,144 +1,657 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-# ==========================================
-# KONFIGURASI TELEGRAM BOT
-# ==========================================
-TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0"
+# ============================================================
+# setup-audit-pro.sh
+# Debian 12 / Ubuntu
+#
+# Fungsi:
+# - Install paket audit/journal/monitor
+# - Aktifkan journal persistent
+# - Pasang audit rules persisten untuk forensic service stop
+# - Buat monitor background via systemd
+# - Kirim notifikasi Telegram berisi:
+#   * properti unit systemd
+#   * potongan journal unit
+#   * journal manager/cron
+#   * jejak audit systemctl/service/kill/shutdown/cron/unit-change
+#   * indikasi dugaan penyebab stop
+# ============================================================
+
+# =========================
+# KONFIGURASI
+# =========================
+TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0" 
 CHAT_ID="6663648335"
 
-echo "==> [1/4] Menginstal modul Auditd, inotify, e2fsprogs (chattr)..."
-apt-get update -qq
-apt-get install -y auditd inotify-tools curl jq e2fsprogs
-
-echo "==> [2/4] Memasang CCTV Kernel (Auditd) Super Ketat..."
-auditctl -D
-# Pantau password root
-auditctl -w /etc/shadow -p wa -k password_changed
-# Pantau direktori SSH dari segala jenis perubahan atribut, tulis, dan pergantian file (sed -i)
-auditctl -w /etc/ssh/ -p wa -k ssh_config_changed
-
-sh -c "auditctl -l > /etc/audit/rules.d/audit.rules"
-systemctl restart auditd
-
-echo "==> [3/4] Membuat Skrip Alarm & Auto-Heal Real-Time..."
-cat << 'EOF' > /usr/local/bin/system-health-monitor.sh
-#!/bin/bash
-
-TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0"
-CHAT_ID="6663648335"
+# Daftar service yang dipantau
 SERVICES=("udp-custom" "xray" "openvpn" "dropbear" "haproxy" "nginx" "cron")
 
-send_tg() {
-    local message="$1"
-    curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
-        -H "Content-Type: application/json" \
-        -d "{\"chat_id\": \"$CHAT_ID\", \"text\": \"$message\"}" > /dev/null
+# Interval polling status service (detik)
+CHECK_INTERVAL=5
+
+# Nama file/rules/service
+ENV_FILE="/etc/system-health-monitor.env"
+MONITOR_BIN="/usr/local/bin/system-health-monitor.sh"
+SYSTEMD_UNIT="/etc/systemd/system/system-health-monitor.service"
+AUDIT_RULES_FILE="/etc/audit/rules.d/99-system-health-monitor.rules"
+BASELINE_DIR="/var/lib/system-health-monitor/baseline"
+
+# =========================
+# VALIDASI
+# =========================
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: Jalankan script ini sebagai root."
+    exit 1
+fi
+
+if ! command -v apt-get >/dev/null 2>&1; then
+    echo "ERROR: Script ini ditujukan untuk Debian/Ubuntu (apt-get)."
+    exit 1
+fi
+
+if [[ -z "${TOKEN// }" || -z "${CHAT_ID// }" ]]; then
+    echo "ERROR: TOKEN dan CHAT_ID wajib diisi."
+    exit 1
+fi
+
+# =========================
+# UTILITAS
+# =========================
+log() {
+    echo "==> $*"
 }
 
-send_tg "🛡️ Sistem Audit PRO Aktif!\n\nDilengkapi pelindung anti-sed, anti-chattr, dan Auto-Heal. Jika ada sabotase, saya akan lapor dan langsung perbaiki sendiri!"
+join_by_space() {
+    local IFS=' '
+    echo "$*"
+}
 
-# =======================================
-# 1. LOOP PANTAU SERVICE MATI
-# =======================================
+backup_file_if_exists() {
+    local src="$1"
+    local dst="$2"
+    if [[ -e "$src" ]]; then
+        cp -a "$src" "$dst"
+    fi
+}
+
+# =========================
+# INSTALL PAKET
+# =========================
+log "[1/8] Menginstal paket yang dibutuhkan..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y \
+    auditd audispd-plugins inotify-tools curl jq e2fsprogs \
+    systemd rsyslog coreutils procps grep sed gawk findutils >/dev/null
+
+# =========================
+# AKTIFKAN JOURNAL PERSISTENT
+# =========================
+log "[2/8] Mengaktifkan persistent journald..."
+mkdir -p /var/log/journal
+if grep -qE '^\s*#?\s*Storage=' /etc/systemd/journald.conf; then
+    sed -i 's/^\s*#\?\s*Storage=.*/Storage=persistent/' /etc/systemd/journald.conf
+else
+    printf '\nStorage=persistent\n' >> /etc/systemd/journald.conf
+fi
+systemctl restart systemd-journald
+journalctl --flush || true
+
+# =========================
+# SIMPAN BASELINE
+# =========================
+log "[3/8] Menyimpan baseline konfigurasi awal..."
+mkdir -p "$BASELINE_DIR"
+chmod 700 "$BASELINE_DIR"
+
+TS="$(date +%F_%H%M%S)"
+mkdir -p "$BASELINE_DIR/$TS"
+
+backup_file_if_exists "/etc/shadow" "$BASELINE_DIR/$TS/shadow"
+if [[ -d /etc/ssh ]]; then
+    mkdir -p "$BASELINE_DIR/$TS/ssh"
+    cp -a /etc/ssh/. "$BASELINE_DIR/$TS/ssh/" 2>/dev/null || true
+fi
+if [[ -d /etc/systemd/system ]]; then
+    mkdir -p "$BASELINE_DIR/$TS/systemd-system"
+    cp -a /etc/systemd/system/. "$BASELINE_DIR/$TS/systemd-system/" 2>/dev/null || true
+fi
+
+# =========================
+# ENV FILE
+# =========================
+log "[4/8] Menulis environment file monitor..."
+cat > "$ENV_FILE" <<EOF
+TOKEN='${TOKEN}'
+CHAT_ID='${CHAT_ID}'
+SERVICES='$(join_by_space "${SERVICES[@]}")'
+CHECK_INTERVAL='${CHECK_INTERVAL}'
+BASELINE_DIR='${BASELINE_DIR}'
+UNIT_JOURNAL_LINES='40'
+MGR_JOURNAL_LINES='40'
+SINCE_WINDOW='-3 min'
+EOF
+chmod 600 "$ENV_FILE"
+
+# =========================
+# AUDIT RULES PERSISTEN
+# =========================
+log "[5/8] Memasang audit rules persisten..."
+cat > "$AUDIT_RULES_FILE" <<'EOF'
+# ============================================================
+# Generated by setup-audit-pro.sh
+# Fokus:
+# - siapa menjalankan kontrol service
+# - kill/pkill/killall
+# - shutdown/reboot/poweroff
+# - cron execution & perubahan cron
+# - perubahan unit systemd
+# - perubahan /etc/shadow dan /etc/ssh
+# ============================================================
+
+# Service control tools
+-a always,exit -F arch=b64 -F path=/usr/bin/systemctl -F perm=x -k svc_ctrl
+-a always,exit -F arch=b64 -F path=/usr/sbin/service -F perm=x -k svc_ctrl
+-a always,exit -F arch=b64 -F path=/usr/bin/systemd-run -F perm=x -k svc_ctrl
+-a always,exit -F arch=b64 -F path=/usr/bin/busctl -F perm=x -k svc_ctrl
+-a always,exit -F arch=b64 -F path=/usr/bin/loginctl -F perm=x -k svc_ctrl
+
+# Direct signal tools
+-a always,exit -F arch=b64 -F path=/usr/bin/kill -F perm=x -k svc_kill
+-a always,exit -F arch=b64 -F path=/usr/bin/pkill -F perm=x -k svc_kill
+-a always,exit -F arch=b64 -F path=/usr/bin/killall -F perm=x -k svc_kill
+
+# Host power paths
+-a always,exit -F arch=b64 -F path=/usr/sbin/shutdown -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/sbin/reboot -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/sbin/poweroff -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/sbin/halt -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/bin/shutdown -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/bin/reboot -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/bin/poweroff -F perm=x -k host_power
+-a always,exit -F arch=b64 -F path=/usr/bin/halt -F perm=x -k host_power
+
+# Cron execution / cron changes
+-a always,exit -F arch=b64 -F path=/usr/bin/crontab -F perm=x -k cron_exec
+-a always,exit -F arch=b64 -F path=/etc/crontab -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/etc/cron.d/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/etc/cron.daily/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/etc/cron.hourly/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/etc/cron.weekly/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/etc/cron.monthly/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/var/spool/cron/ -F perm=wa -k cron_changed
+-a always,exit -F arch=b64 -F dir=/var/spool/cron/crontabs/ -F perm=wa -k cron_changed
+
+# systemd unit/drop-in changes
+-a always,exit -F arch=b64 -F dir=/etc/systemd/system/ -F perm=wa -k unit_changed
+-a always,exit -F arch=b64 -F dir=/run/systemd/system/ -F perm=wa -k unit_changed
+-a always,exit -F arch=b64 -F dir=/usr/lib/systemd/system/ -F perm=wa -k unit_changed
+-a always,exit -F arch=b64 -F dir=/lib/systemd/system/ -F perm=wa -k unit_changed
+
+# Password / SSH config changes
+-a always,exit -F arch=b64 -F path=/etc/shadow -F perm=wa -k password_changed
+-a always,exit -F arch=b64 -F dir=/etc/ssh/ -F perm=wa -k ssh_config_changed
+EOF
+
+# Bersihkan rule yang menunjuk ke path yang tidak ada
+TMP_RULES="$(mktemp)"
+while IFS= read -r line; do
+    if [[ "$line" =~ path=([^[:space:]]+) ]]; then
+        p="${BASH_REMATCH[1]}"
+        if [[ -e "$p" ]]; then
+            echo "$line" >> "$TMP_RULES"
+        fi
+    elif [[ "$line" =~ dir=([^[:space:]]+) ]]; then
+        d="${BASH_REMATCH[1]}"
+        if [[ -d "$d" ]]; then
+            echo "$line" >> "$TMP_RULES"
+        fi
+    else
+        echo "$line" >> "$TMP_RULES"
+    fi
+done < "$AUDIT_RULES_FILE"
+mv "$TMP_RULES" "$AUDIT_RULES_FILE"
+chmod 640 "$AUDIT_RULES_FILE"
+
+systemctl enable auditd >/dev/null 2>&1 || true
+augenrules --load
+systemctl restart auditd || true
+
+# =========================
+# MONITOR SCRIPT
+# =========================
+log "[6/8] Membuat monitor forensic..."
+cat > "$MONITOR_BIN" <<'EOF'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ENV_FILE="/etc/system-health-monitor.env"
+[[ -r "$ENV_FILE" ]] || { echo "ENV file tidak ditemukan: $ENV_FILE"; exit 1; }
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+HOSTNAME_FQDN="$(hostname -f 2>/dev/null || hostname)"
+read -r -a SERVICES_ARR <<< "${SERVICES:-}"
+CHECK_INTERVAL="${CHECK_INTERVAL:-5}"
+UNIT_JOURNAL_LINES="${UNIT_JOURNAL_LINES:-40}"
+MGR_JOURNAL_LINES="${MGR_JOURNAL_LINES:-40}"
+SINCE_WINDOW="${SINCE_WINDOW:--3 min}"
+
+send_tg_raw() {
+    local text="$1"
+    jq -Rn \
+        --arg chat_id "$CHAT_ID" \
+        --arg text "$text" \
+        '{chat_id:$chat_id, text:$text, disable_web_page_preview:true}' \
+    | curl -fsS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d @- >/dev/null
+}
+
+send_tg() {
+    local text="$1"
+    local max=3500
+    local chunk split_at
+
+    while [[ -n "$text" ]]; do
+        if (( ${#text} <= max )); then
+            send_tg_raw "$text"
+            break
+        fi
+
+        split_at=$(awk -v s="$text" -v m="$max" 'BEGIN{
+            p=m
+            while (p>1 && substr(s,p,1)!="\n") p--
+            if (p<=1) p=m
+            print p
+        }')
+        chunk="${text:0:split_at}"
+        send_tg_raw "$chunk"
+        text="${text:split_at}"
+    done
+}
+
+safe_cmd() {
+    "$@" 2>/dev/null || true
+}
+
+escape_regex() {
+    printf '%s' "$1" | sed 's/[][(){}.^$*+?|\/]/\\&/g'
+}
+
+unit_exists() {
+    systemctl show "$1" -p Id >/dev/null 2>&1
+}
+
+get_unit_props() {
+    local unit="$1"
+    safe_cmd systemctl show "$unit" \
+        -p Id \
+        -p Names \
+        -p LoadState \
+        -p ActiveState \
+        -p SubState \
+        -p Result \
+        -p MainPID \
+        -p ExecMainPID \
+        -p ExecMainCode \
+        -p ExecMainStatus \
+        -p ExecMainStartTimestamp \
+        -p ExecMainExitTimestamp \
+        -p StateChangeTimestamp \
+        -p ActiveEnterTimestamp \
+        -p ActiveExitTimestamp \
+        -p InactiveEnterTimestamp \
+        -p FragmentPath \
+        -p UnitFileState \
+        -p InvocationID
+}
+
+recent_unit_journal() {
+    local unit="$1"
+    safe_cmd journalctl -u "$unit" --since "$SINCE_WINDOW" --no-pager -o short-iso | tail -n "$UNIT_JOURNAL_LINES"
+}
+
+recent_manager_journal() {
+    local unit="$1"
+    local unit_rx
+    unit_rx="$(escape_regex "$unit")"
+    safe_cmd journalctl --since "$SINCE_WINDOW" --no-pager -o short-iso \
+        | grep -Ei "systemd\\[1\\]|\\bCRON\\b|cron\\[[0-9]+\\]|${unit_rx}|shutdown|reboot|poweroff|halt|Stopping|Stopped|Starting|Failed" \
+        | tail -n "$MGR_JOURNAL_LINES"
+}
+
+recent_audit_by_key() {
+    local key="$1"
+    safe_cmd ausearch -k "$key" -ts recent -i | tail -n 100
+}
+
+filter_audit_for_unit() {
+    local text="$1"
+    local unit="$2"
+    local unit_rx
+    unit_rx="$(escape_regex "$unit")"
+    printf '%s\n' "$text" | grep -Ei "${unit_rx}|systemctl|service|systemd-run|busctl|loginctl|kill|pkill|killall|shutdown|reboot|poweroff|halt|CRON|cron" | tail -n 40 || true
+}
+
+trim_block() {
+    local text="$1"
+    local max_lines="${2:-25}"
+    printf '%s\n' "$text" | tail -n "$max_lines"
+}
+
+guess_cause() {
+    local unit="$1"
+    local props="$2"
+    local audit_ctrl="$3"
+    local audit_kill="$4"
+    local audit_power="$5"
+    local audit_cron="$6"
+    local audit_cronchg="$7"
+    local audit_unitchg="$8"
+    local managerlog="$9"
+
+    local unit_rx
+    unit_rx="$(escape_regex "$unit")"
+
+    if grep -qiE "shutdown|reboot|poweroff|halt" <<< "$audit_power"$'\n'"$managerlog"; then
+        echo "Kemungkinan besar unit berhenti karena host sedang shutdown/reboot/poweroff."
+        return 0
+    fi
+
+    if grep -qiE "\\bCRON\\b|cron\\[[0-9]+\\]" <<< "$managerlog" && \
+       grep -qiE "systemctl|service|systemd-run" <<< "$audit_ctrl"$'\n'"$audit_cron"; then
+        echo "Sangat mungkin dipicu oleh CRON yang menjalankan kontrol service."
+        return 0
+    fi
+
+    if grep -qiE "(a1=stop|a1=restart|a1=try-restart|a1=reload-or-restart|a1=kill|a1=disable|a1=mask)" <<< "$audit_ctrl" && \
+       grep -qiE "$unit_rx|${unit_rx}\.service" <<< "$audit_ctrl"$'\n'"$managerlog"; then
+        echo "Terlihat jejak perintah kontrol service yang menargetkan unit ini."
+        return 0
+    fi
+
+    if grep -qiE "kill|pkill|killall" <<< "$audit_kill"; then
+        if grep -q '^Result=signal$' <<< "$props"; then
+            echo "Kemungkinan besar proses service diberi sinyal kill/pkill/killall."
+        else
+            echo "Ada jejak perintah kill/pkill/killall di jendela waktu yang sama."
+        fi
+        return 0
+    fi
+
+    if grep -q '^Result=exit-code$' <<< "$props"; then
+        echo "Main process unit keluar sendiri atau crash dengan exit code non-zero."
+        return 0
+    fi
+
+    if grep -q '^Result=signal$' <<< "$props"; then
+        echo "Main process unit berakhir oleh sinyal."
+        return 0
+    fi
+
+    if grep -q '^Result=timeout$' <<< "$props"; then
+        echo "Unit berhenti karena timeout."
+        return 0
+    fi
+
+    if grep -qiE "Failed|Stopped" <<< "$managerlog" && grep -qiE "unit_changed" <<< "$audit_unitchg"; then
+        echo "Ada perubahan unit/drop-in systemd di sekitar waktu kejadian."
+        return 0
+    fi
+
+    if grep -qiE "cron_changed" <<< "$audit_cronchg"; then
+        echo "Ada perubahan konfigurasi cron di sekitar waktu kejadian."
+        return 0
+    fi
+
+    echo "Penyebab belum 100% konklusif; lihat bukti audit dan journal di bawah."
+}
+
+password_change_report() {
+    local audit_shadow shelllog
+    audit_shadow="$(recent_audit_by_key password_changed)"
+    shelllog="$(safe_cmd journalctl --since "$SINCE_WINDOW" --no-pager -o short-iso | grep -Ei 'passwd|shadow|chpasswd|usermod|usermod|sudo|su:' | tail -n 30)"
+
+    local msg
+    msg=$(
+cat <<MSG
+🚨 ALERT: /etc/shadow BERUBAH
+
+Host  : ${HOSTNAME_FQDN}
+Waktu : $(date '+%F %T %Z')
+
+[Audit - password_changed]
+$(trim_block "$audit_shadow" 30)
+
+[Journal terkait]
+$(trim_block "$shelllog" 30)
+MSG
+)
+    send_tg "$msg"
+}
+
+ssh_change_report() {
+    local audit_ssh ssh_test sshlog
+    audit_ssh="$(recent_audit_by_key ssh_config_changed)"
+    ssh_test="$(safe_cmd sshd -t 2>&1)"
+    sshlog="$(safe_cmd journalctl --since "$SINCE_WINDOW" --no-pager -o short-iso | grep -Ei 'sshd|sshd_config|ssh' | tail -n 30)"
+
+    local syntax_status="OK"
+    if [[ -n "$ssh_test" ]]; then
+        syntax_status="ERROR"
+    fi
+
+    local msg
+    msg=$(
+cat <<MSG
+🚨 ALERT: KONFIGURASI SSH BERUBAH
+
+Host         : ${HOSTNAME_FQDN}
+Waktu        : $(date '+%F %T %Z')
+Validasi sshd: ${syntax_status}
+
+[Audit - ssh_config_changed]
+$(trim_block "$audit_ssh" 35)
+
+[sshd -t output]
+${ssh_test:-Tidak ada output; syntax tampak valid.}
+
+[Journal terkait]
+$(trim_block "$sshlog" 30)
+MSG
+)
+    send_tg "$msg"
+}
+
+service_stop_report() {
+    local unit="$1"
+    sleep 1
+
+    local props unitlog managerlog
+    local audit_ctrl audit_kill audit_power audit_cron audit_cronchg audit_unitchg
+    local cause
+
+    props="$(get_unit_props "$unit")"
+    unitlog="$(recent_unit_journal "$unit")"
+    managerlog="$(recent_manager_journal "$unit")"
+
+    audit_ctrl="$(recent_audit_by_key svc_ctrl)"
+    audit_kill="$(recent_audit_by_key svc_kill)"
+    audit_power="$(recent_audit_by_key host_power)"
+    audit_cron="$(recent_audit_by_key cron_exec)"
+    audit_cronchg="$(recent_audit_by_key cron_changed)"
+    audit_unitchg="$(recent_audit_by_key unit_changed)"
+
+    cause="$(guess_cause "$unit" "$props" "$audit_ctrl" "$audit_kill" "$audit_power" "$audit_cron" "$audit_cronchg" "$audit_unitchg" "$managerlog")"
+
+    local msg
+    msg=$(
+cat <<MSG
+⚠️ ALERT: SERVICE BERHENTI
+
+Host   : ${HOSTNAME_FQDN}
+Unit   : ${unit}
+Waktu  : $(date '+%F %T %Z')
+Ringkas: ${cause}
+
+[systemctl show]
+$(trim_block "$props" 30)
+
+[Audit - service control]
+$(trim_block "$(filter_audit_for_unit "$audit_ctrl" "$unit")" 35)
+
+[Audit - kill path]
+$(trim_block "$(filter_audit_for_unit "$audit_kill" "$unit")" 25)
+
+[Audit - power path]
+$(trim_block "$audit_power" 20)
+
+[Audit - cron exec]
+$(trim_block "$audit_cron" 20)
+
+[Audit - cron changed]
+$(trim_block "$audit_cronchg" 20)
+
+[Audit - unit changed]
+$(trim_block "$audit_unitchg" 20)
+
+[Journal unit]
+$(trim_block "$unitlog" 35)
+
+[Journal manager/cron]
+$(trim_block "$managerlog" 35)
+MSG
+)
+    send_tg "$msg"
+}
+
 monitor_services() {
-    declare -A STATE
-    for s in "${SERVICES[@]}"; do
-        STATE[$s]=$(systemctl is-active $s)
+    declare -A STATE=()
+
+    for s in "${SERVICES_ARR[@]}"; do
+        if unit_exists "$s"; then
+            STATE["$s"]="$(safe_cmd systemctl is-active "$s")"
+        else
+            STATE["$s"]="missing"
+        fi
     done
 
     while true; do
-        sleep 5
-        for s in "${SERVICES[@]}"; do
-            current=$(systemctl is-active $s)
-            if [[ "${STATE[$s]}" == "active" && "$current" != "active" ]]; then
-                send_tg "⚠️ ALERT: SERVICE DIMATIKAN!\n\nLayanan '$s' baru saja di-stop secara paksa."
+        sleep "$CHECK_INTERVAL"
+
+        for s in "${SERVICES_ARR[@]}"; do
+            local current
+            if unit_exists "$s"; then
+                current="$(safe_cmd systemctl is-active "$s")"
+            else
+                current="missing"
             fi
-            STATE[$s]=$current
+
+            if [[ "${STATE[$s]}" == "active" && "$current" != "active" ]]; then
+                service_stop_report "$s"
+            fi
+
+            STATE["$s"]="$current"
         done
     done
 }
 
-# =======================================
-# 2. LOOP PANTAU FILE (ANTI SED & CHATTR)
-# =======================================
 monitor_files() {
-    # Pantau berbagai jenis event: modifikasi, ganti atribut (chattr), file ditimpa (sed -i)
-    inotifywait -m -e modify,attrib,close_write,moved_to,create /etc/shadow /etc/ssh/ /etc/ssh/sshd_config.d/ 2>/dev/null |
-    while read -r directory events filename; do
-        filepath="$directory$filename"
-        
-        # Jeda sejenak agar proses sed/chattr pelaku selesai dan auditd selesai mencatat
-        sleep 1 
-        
-        # JIKA PASSWORD ROOT DIUBAH
-        if [[ "$filepath" == *"/shadow"* ]]; then
-            CULPRIT=$(ausearch -k password_changed -ts recent | grep "exe=" | tail -1 | sed -E 's/.*exe="([^"]+)".*/\1/')
-            send_tg "🚨 ALERT: PASSWORD ROOT DIUBAH!\n\nTersangka (Program): ${CULPRIT:-Unknown}"
-        fi
-        
-        # JIKA KONFIGURASI SSH DIUBAH/DISABOTASE
-        if [[ "$filepath" == *"/sshd_config"* || "$filepath" == *"/99-allow-root.conf"* ]]; then
-            
-            # Pengecekan apakah PasswordAuth dimatikan oleh pelaku
-            if grep -Eqi "^[#]*PasswordAuthentication\s+no" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null; then
-                
-                # Cari tau dalangnya
-                CULPRIT=$(ausearch -k ssh_config_changed -ts recent | grep "exe=" | tail -1 | sed -E 's/.*exe="([^"]+)".*/\1/')
-                
-                send_tg "🚨 SABOTASE SSH TERDETEKSI!\n\nPelaku menggunakan $events pada file $filename.\nProgram tersanga: ${CULPRIT:-Unknown}\n\n⚙️ Melakukan Auto-Recovery sekarang..."
+    local watch_paths=()
 
-                # ==========================================
-                # PROSES AUTO-HEAL (PERBAIKAN OTOMATIS)
-                # ==========================================
-                # 1. Buka gembok file jika sebelumnya dikunci pelaku
-                chattr -i /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null
-                
-                # 2. Hapus aturan jahat menggunakan sed kita sendiri
-                sed -i 's/^[#]*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null
-                sed -i 's/^[#]*PubkeyAuthentication.*/PubkeyAuthentication no/g' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null
-                
-                # 3. Timpa paksa file drop-in config untuk memastikan
-                echo "PermitRootLogin yes" > /etc/ssh/sshd_config.d/99-allow-root.conf
-                echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config.d/99-allow-root.conf
-                echo "PubkeyAuthentication no" >> /etc/ssh/sshd_config.d/99-allow-root.conf
-                
-                # 4. Gembok kembali file tersebut dengan chattr +i agar pelaku pusing
-                chattr +i /etc/ssh/sshd_config /etc/ssh/sshd_config.d/99-allow-root.conf
-                
-                # 5. Restart layanan SSH
-                systemctl restart ssh
-                
-                send_tg "✅ RECOVERY SUKSES!\n\nPasswordAuthentication berhasil dikembalikan ke 'yes'.\nFile konfigurasi sekarang DIGEMBOK (chattr +i) untuk mencegah serangan lanjutan."
-            fi
+    [[ -e /etc/shadow ]] && watch_paths+=("/etc/shadow")
+    [[ -d /etc/ssh ]] && watch_paths+=("/etc/ssh")
+    [[ -d /etc/ssh/sshd_config.d ]] && watch_paths+=("/etc/ssh/sshd_config.d")
+
+    if [[ ${#watch_paths[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    inotifywait -m -r \
+        -e modify,attrib,close_write,moved_to,create,delete,move \
+        --format '%w|%e|%f' \
+        "${watch_paths[@]}" 2>/dev/null |
+    while IFS='|' read -r directory events filename; do
+        local filepath="${directory}${filename}"
+
+        sleep 1
+
+        if [[ "$filepath" == "/etc/shadow" || "$filepath" == *"/shadow" ]]; then
+            password_change_report
+        fi
+
+        if [[ "$filepath" == *"/sshd_config"* || "$filepath" == *"/ssh/"* || "$filepath" == *"/sshd_config.d/"* ]]; then
+            ssh_change_report
         fi
     done
 }
 
-monitor_services &
-monitor_files &
-wait
+send_boot_message() {
+    local services_text
+    services_text="$(printf '%s, ' "${SERVICES_ARR[@]}" | sed 's/, $//')"
+    send_tg "🛡️ System Health Monitor aktif di ${HOSTNAME_FQDN}\n\nLayanan dipantau: ${services_text}\nMode: forensic audit + journal + systemd properties"
+}
+
+main() {
+    send_boot_message
+    monitor_services &
+    monitor_files &
+    wait
+}
+
+main
 EOF
+chmod 700 "$MONITOR_BIN"
 
-chmod +x /usr/local/bin/system-health-monitor.sh
-
-echo "==> [4/4] Restart Service Background..."
-cat << 'EOF' > /etc/systemd/system/system-health-monitor.service
+# =========================
+# SYSTEMD SERVICE
+# =========================
+log "[7/8] Membuat service systemd monitor..."
+cat > "$SYSTEMD_UNIT" <<'EOF'
 [Unit]
-Description=System Health & Security Monitor PRO
-After=network.target
+Description=System Health Monitor (Forensic + Telegram)
+After=network-online.target auditd.service systemd-journald.service
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
+Type=simple
 ExecStart=/usr/local/bin/system-health-monitor.sh
 Restart=always
 RestartSec=3
 User=root
+NoNewPrivileges=false
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+# =========================
+# ENABLE & START
+# =========================
+log "[8/8] Mengaktifkan monitor..."
 systemctl daemon-reload
-systemctl enable system-health-monitor
-systemctl restart system-health-monitor
+systemctl enable system-health-monitor.service >/dev/null
+systemctl restart system-health-monitor.service
 
-echo "✅ SELESAI! Bot pantau ANTI-SED sudah berjalan penuh."
+echo
+echo "============================================================"
+echo "SELESAI"
+echo "============================================================"
+echo "1. Monitor aktif sebagai service: system-health-monitor.service"
+echo "2. ENV file: $ENV_FILE"
+echo "3. Audit rules: $AUDIT_RULES_FILE"
+echo "4. Baseline awal: $BASELINE_DIR/$TS"
+echo
+echo "Perintah cek cepat:"
+echo "  systemctl status system-health-monitor --no-pager"
+echo "  journalctl -u system-health-monitor -n 50 --no-pager"
+echo "  auditctl -l"
+echo
+echo "CATATAN:"
+echo "- Jika token bot lama pernah bocor, rotate token dulu di BotFather."
+echo "- Jika ingin menambah service yang dipantau, edit $ENV_FILE lalu:"
+echo "    systemctl restart system-health-monitor"
+echo "============================================================"
