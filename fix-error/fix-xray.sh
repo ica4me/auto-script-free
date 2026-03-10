@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Memastikan script dijalankan sebagai root
 if [ "${EUID}" -ne 0 ]; then
     echo "Error: Silakan jalankan script ini sebagai root."
     exit 1
@@ -8,7 +7,11 @@ fi
 
 echo -e "\n[INFO] Memulai perbaikan izin akses dan konfigurasi Xray..."
 
-# 1. Timpa/Ganti file konfigurasi Xray
+# Pastikan direktori ada
+mkdir -p /etc/xray
+mkdir -p /var/log/xray
+
+# 1. Tulis config
 echo "[INFO] Mengganti file konfigurasi /etc/xray/config.json..."
 
 # Pastikan direktori ada sebelum membuat file
@@ -258,32 +261,31 @@ cat > /etc/xray/config.json << 'EOF'
 }
 EOF
 
-# Pastikan file config mendapat izin yang benar
+# 2. Fix permission
+echo "[INFO] Menyesuaikan izin file dan direktori Xray..."
+chown root:root /etc/xray
 chmod 755 /etc/xray
+
 chown root:www-data /etc/xray/config.json
 chmod 640 /etc/xray/config.json
+
 chown -R www-data:www-data /var/log/xray
+chmod 755 /var/log/xray
+find /var/log/xray -type f -exec chmod 640 {} \; 2>/dev/null || true
 
-# 2. Berikan kepemilikan folder log dan isinya ke www-data
-echo "[INFO] Menyesuaikan izin folder log (/var/log/xray)..."
-mkdir -p /var/log/xray
-chown -R www-data:www-data /var/log/xray
-
-# 3. Berikan kepemilikan folder konfigurasi ke www-data
-echo "[INFO] Menyesuaikan izin folder konfigurasi (/etc/xray)..."
-chown -R www-data:www-data /etc/xray
-
-# 4. Memperbaiki format newline pada script menu (CRLF ke LF)
+# 3. Perbaiki format newline
 echo "[INFO] Memperbaiki format script..."
-# =====Keluarga-vless====
 sed -i 's/\r$//' /usr/local/sbin/xray-vless-lib /usr/local/sbin/add-vle /usr/local/sbin/member-vle /usr/local/sbin/check-vle \
   /usr/local/sbin/change-vless-qouta /usr/local/sbin/ganti-ip-vless /usr/local/sbin/renew-vle \
   /usr/local/sbin/del-vle /usr/local/sbin/lock-vl /usr/local/sbin/unlock-vl /usr/local/sbin/recover-vl /usr/local/sbin/trial-vle
-# =====Keluarga-vless====
 sed -i 's/\r$//' /usr/local/sbin/xray-vmess-lib
 dos2unix /usr/local/sbin/add-vme 2>/dev/null || sed -i 's/\r$//' /usr/local/sbin/add-vme
 
-# 5. Restart layanan Xray
+# 4. Test config dulu
+echo "[INFO] Menguji konfigurasi Xray..."
+sudo -u www-data /usr/local/bin/xray run -test -c /etc/xray/config.json
+
+# 5. Restart Xray
 echo "[INFO] Mereload daemon dan merestart layanan Xray..."
 systemctl daemon-reload
 systemctl restart xray
@@ -291,7 +293,4 @@ systemctl restart xray
 echo -e "[SUCCESS] Perbaikan selesai!\n"
 echo "Berikut adalah status layanan Xray saat ini:"
 echo "------------------------------------------------"
-
-# 6. Cek statusnya
-sudo -u www-data /usr/local/bin/xray run -test -c /etc/xray/config.json
 systemctl status xray --no-pager
