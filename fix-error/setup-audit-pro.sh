@@ -19,8 +19,8 @@ set -Eeuo pipefail
 # =========================
 # KONFIGURASI
 # =========================
-TOKEN="GANTI_TOKEN_BARU"
-CHAT_ID="GANTI_CHAT_ID"
+TOKEN="8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0" 
+CHAT_ID="6663648335"
 
 # Nama target yang dipantau.
 # Pada mode systemd: dianggap nama unit service
