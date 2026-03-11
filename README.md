@@ -158,6 +158,12 @@ Fix Systemctl yang hilang
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-systemctl.sh | bash
 ```
 
+Fix Xray file config.json hilang
+
+```bash
+wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/restore-xrayconfjson.sh | bash
+```
+
 ---
 
 ## ✅ Instalasi Selesai

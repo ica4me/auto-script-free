@@ -1,32 +1,13 @@
-Cara cek quota ter pakai xray
+/etc/cron.d/autokill-xray
 
-======contoh test user yuyu====
+tail -50 /var/log/xray/access.log
 
-mkdir -p /etc/kyt/limit/vless/
+iptables -S INPUT | grep DROP
 
-echo "10737418240" > /etc/kyt/limit/vless/yuyu
+ss -tulpn | grep -E 'xray|nginx|haproxy'
 
-cat /etc/kyt/limit/vless/yuyu
 
-=============
---cek port---
-iptables -t nat -L PREROUTING -n --line-numbers
-iptables -t nat -S PREROUTING
-
-root@debian-vm:~# iptables -t nat -L PREROUTING -n --line-numbers
-Chain PREROUTING (policy ACCEPT)
-num  target     prot opt source               destination
-1    RETURN     17   --  0.0.0.0/0            0.0.0.0/0            udp dpts:10000:10008
-2    DNAT       17   --  0.0.0.0/0            0.0.0.0/0            udp dpts:6000:19999 to::5667
-3    DNAT       17   --  0.0.0.0/0            0.0.0.0/0            udp dpts:1:65535 to::36712
-4    DNAT       17   --  0.0.0.0/0            0.0.0.0/0            udp dpts:6000:19999 to::5667
-5    DNAT       17   --  0.0.0.0/0            0.0.0.0/0            udp dpts:6000:19999 to::5667
-root@debian-vm:~# iptables -t nat -S PREROUTING
--P PREROUTING ACCEPT
--A PREROUTING -p udp -m udp --dport 10000:10008 -j RETURN
--A PREROUTING -p udp -m udp --dport 6000:19999 -j DNAT --to-destination :5667
--A PREROUTING -i eth0 -p udp -m udp --dport 1:65535 -j DNAT --to-destination :36712
--A PREROUTING -p udp -m udp --dport 6000:19999 -j DNAT --to-destination :5667
--A PREROUTING -p udp -m udp --dport 6000:19999 -j DNAT --to-destination :5667
-root@debian-vm:~#
-
+===================
+Mana saja yang di perbaiki agar tunnel ssh-ws dropbeard dan xray vless, vmess, trojan, ssr 
+agar Ubah limit ip menjadi limit sesi, bukan limit IP lagi
+jadi satu akun hanya boleh konek sesuai limitasi sesi yang di buatkan tidak boleh lebih dari sesu izin
