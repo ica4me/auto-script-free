@@ -1,10 +1,10 @@
 <p align="center">
-    ###[ScreenShot Main Menu\]</p>
+    [ScreenShot Main Menu]</p>
 
 <p align="center">
  <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/main_menu.png" width="600"/>
 </p>
-# 📦 Tutorial Instalasi (Step by Step)
+📦 Tutorial Instalasi (Step by Step)
 
 **Rekomendasi OS: Debian 11 / Debian 12 (Stable)**
 
@@ -223,14 +223,14 @@ Go Free
 Selamat VPS Anda siap digunakan 🚀
 
 <details>
-<summary>**Service & Port List**</summary>
+<summary>Service & Port List</summary>
 <p align="center">
  <img src="https://raw.githubusercontent.com/ica4me/auto-script-free/main/dokumentasi/service-port-list.png" width="300"/>
 </p>
 </details>
 
 <details>
-<summary>**Setting CloudFlare**</summary>
+<summary>Setting CloudFlare</summary>
 
 - Pointing Domain
 

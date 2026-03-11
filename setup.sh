@@ -322,10 +322,10 @@ wget ${REPO}install/udp-custom.sh && chmod +x udp-custom.sh && bash udp-custom.s
 clear
 }
 
-#res10() {
-#wget ${REPO}udp-zi && chmod +x udp-zi && ./udp-zi
-#clear
-#}
+res10() {
+wget ${REPO}udp-zi && chmod +x udp-zi && ./udp-zi
+clear
+}
 
 #res11() {
 #wget ${REPO}install-nob && chmod +x install-nob && bash install-nob
@@ -399,8 +399,8 @@ echo -e "DOWNLOAD UDP COSTUM"
 fun_bar 'res9'
 
 
-#echo -e "DOWNLOAD ZIVPN"
-#fun_bar 'res10'
+echo -e "DOWNLOAD ZIVPN"
+fun_bar 'res10'
 
 
 #echo -e "DOWNLOAD NOOBZ"
@@ -452,8 +452,8 @@ echo -e  "DOWNLOAD UDP COSTUM"
 res9
 
 
-#echo -e  "DOWNLOAD ZIVPN"
-#res10
+echo -e  "DOWNLOAD ZIVPN"
+res10
 
 
 #echo -e  "DOWNLOAD NOOBZ"
