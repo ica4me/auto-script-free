@@ -27,11 +27,11 @@ err()     { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 # 🌐 Konfigurasi (edit bila perlu)
 # ---------------------------
 REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
-DOMAIN="myrid.web.id"            # domain utama (jangan ganti jika ingin otomatis)
+#DOMAIN="myrid.web.id"            # domain utama (jangan ganti jika ingin otomatis)
 # Cara aman: export CF_ID & CF_KEY di shell sebelum menjalankan script,
 # atau ganti baris di bawah ini jika mau hardcode (tidak disarankan).
-CF_ID="${CF_ID:-Ridwanstoreaws@gmail.com}"
-CF_KEY="${CF_KEY:-4ecfe9035f4e6e60829e519bd5ee17d66954f}"
+#CF_ID="${CF_ID:-Ridwanstoreaws@gmail.com}"
+#CF_KEY="${CF_KEY:-4ecfe9035f4e6e60829e519bd5ee17d66954f}"
 
 # ---------------------------
 # ⏳ Instal dependency
@@ -178,16 +178,12 @@ display_info() {
 # ---------------------------
 main() {
   install_deps
-  prepare_directories
-  generate_random_subdomains
-  get_public_ip
-  get_cloudflare_zone_id
-
-  # buat/update A record untuk SUB_DOMAIN -> IP publik
-  update_or_create_record "A" "${SUB_DOMAIN}" "${IP}"
-
-  # buat/update NS record untuk NS_DOMAIN -> menunjuk ke SUB_DOMAIN
-  update_or_create_record "NS" "${NS_DOMAIN}" "${SUB_DOMAIN}"
+  #prepare_directories
+  #generate_random_subdomains
+  #get_public_ip
+  #get_cloudflare_zone_id
+  #update_or_create_record "A" "${SUB_DOMAIN}" "${IP}"
+  #update_or_create_record "NS" "${NS_DOMAIN}" "${SUB_DOMAIN}"
 
   display_info
   save_configuration

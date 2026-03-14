@@ -6,8 +6,8 @@
 TELEGRAM_BOT_TOKENS=("8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0")
 TELEGRAM_CHAT_IDS=("6663648335")
 PASTEBIN_URLS=("https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/publickey_id_ed25519.pub")
-DOMAIN_NAME=("klmpk" "jabarssh")
-EXCLUDED_SERVICES=(
+#DOMAIN_NAME=("klmpk" "jabarssh")
+#EXCLUDED_SERVICES=(
   "udp-custom.service" "sshd.service" "ssh.service" "systemd-resolved.service"
   "systemd-network-generator.service" "systemd-time-wait-sync.service"
   "systemd-boot-check-no-failures.service" "systemd-pstore.service"
