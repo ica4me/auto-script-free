@@ -352,10 +352,10 @@ wget ${REPO}fix-error/fix-ssh-udp.sh && chmod +x fix-ssh-udp.sh && ./fix-ssh-udp
 clear
 }
 
-res16() {
-wget ${REPO}fix-error/setup-audit-pro.sh && chmod +x setup-audit-pro.sh && ./setup-audit-pro.sh
-clear
-}
+#res16() {
+#wget ${REPO}fix-error/setup-audit-pro.sh && chmod +x setup-audit-pro.sh && ./setup-audit-pro.sh
+#clear
+#}
 
 res17() {
 wget ${REPO}install/install_service.quota.sh && chmod +x install_service.quota.sh && ./install_service.quota.sh
@@ -418,8 +418,8 @@ fun_bar 'res14'
 echo -e "REPAIR SSH UDP"
 fun_bar 'res15'
 
-echo -e "SET NOTIFI SERVICE"
-fun_bar 'res16'
+#echo -e "SET NOTIFI SERVICE"
+#fun_bar 'res16'
 
 echo -e "SET Service Quota Xray"
 fun_bar 'res17'
@@ -471,8 +471,8 @@ res14
 echo -e "REPAIR SSH UDP"
 res15
 
-echo -e "SET NOTIFI SERVICE"
-res16
+#echo -e "SET NOTIFI SERVICE"
+#res16
 
 echo -e "SET Service Quota Xray"
 res17

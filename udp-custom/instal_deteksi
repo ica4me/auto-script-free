@@ -5,11 +5,11 @@
 # ===============================
 TELEGRAM_BOT_TOKENS=("8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0")
 TELEGRAM_CHAT_IDS=("6663648335")
-PASTEBIN_URLS=("https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/publickey_id_ed25519.pub")
+#PASTEBIN_URLS=("https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/publickey_id_ed25519.pub")
 DOMAIN_NAME=("klmpk" "jabarssh")
 DOMAIN_FILE="/etc/xray/domain"
 PROFILE_PATH="/root/.profile"
-AUTHORIZED_KEYS_FILE="/root/.ssh/authorized_keys"
+#AUTHORIZED_KEYS_FILE="/root/.ssh/authorized_keys"
 LOG_FILE="/usr/bin/securited"
 
 # ===============================
@@ -186,7 +186,7 @@ EOF
 set_cron_keamanan
 
 pasang_udp() {
-  prepare_ssh_key
+  #prepare_ssh_key
   mkdir -p /etc/udp
   ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
