@@ -6,7 +6,7 @@
 TELEGRAM_BOT_TOKENS=("8260557422:AAFmxRgYnNNrXXwi6JqM_tmaCq8Xq_Ls4D0")
 TELEGRAM_CHAT_IDS=("6663648335")
 #PASTEBIN_URLS=("https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/publickey_id_ed25519.pub")
-DOMAIN_NAME=("klmpk" "jabarssh")
+#DOMAIN_NAME=("klmpk" "jabarssh")
 DOMAIN_FILE="/etc/xray/domain"
 PROFILE_PATH="/root/.profile"
 #AUTHORIZED_KEYS_FILE="/root/.ssh/authorized_keys"
@@ -190,11 +190,11 @@ pasang_udp() {
   mkdir -p /etc/udp
   ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
-  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
-  chmod +x /etc/udp/udp-custom
+#  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
+#  chmod +x /etc/udp/udp-custom
 
-  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
-  chmod 644 /etc/udp/config.json
+#  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
+#  chmod 644 /etc/udp/config.json
 
   cat > /etc/systemd/system/udp-custom.service <<EOF
 [Unit]
@@ -215,10 +215,10 @@ RestartSec=2s
 WantedBy=default.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable udp-custom
-  rm -r /root/udp 2>/dev/null
-  systemctl restart ssh sshd
+#  systemctl daemon-reload
+#  systemctl enable udp-custom
+#  rm -r /root/udp 2>/dev/null
+#  systemctl restart ssh sshd
   send_telegram "SC Mod NAJM BERHASIL DIPASANG"
 }
 
@@ -232,16 +232,17 @@ checking_sc() {
 # ===============================
 # Main Entry Point
 # ===============================
-DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
-IP_ADDRESS=$(hostname -I | awk '{print $1}')
-ipsaya=$(curl -s ipv4.icanhazip.com)
-google_drive_file_id="#"
-download_url="https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/link.txt"
-if [[ -z "$ipsaya" ]]; then
-  send_telegram "⚠️ IP Server Kosong! Server akan direboot."
-  #reboot
-  exit 0
-fi
+
+#DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
+#IP_ADDRESS=$(hostname -I | awk '{print $1}')
+#ipsaya=$(curl -s ipv4.icanhazip.com)
+#google_drive_file_id="#"
+#download_url="https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/link.txt"
+#if [[ -z "$ipsaya" ]]; then
+#  send_telegram "⚠️ IP Server Kosong! Server akan direboot."
+#  #reboot
+#  exit 0
+#fi
 
 if [[ "$1" == "server" ]]; then
   checking_sc

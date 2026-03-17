@@ -41,11 +41,11 @@ echo
 # ──────────────────────────────
 # 📦 Install Rclone
 # ──────────────────────────────
-info "Installing Rclone..."
-apt install -y rclone >/dev/null 2>&1 || error "Failed to install Rclone"
-printf "q\n" | rclone config >/dev/null 2>&1
-wget -q -O /root/.config/rclone/rclone.conf "${RCLONE_CONF}" || error "Failed to fetch Rclone config"
-ok "Rclone installed and configured."
+#info "Installing Rclone..."
+#apt install -y rclone >/dev/null 2>&1 || error "Failed to install Rclone"
+#printf "q\n" | rclone config >/dev/null 2>&1
+#wget -q -O /root/.config/rclone/rclone.conf "${RCLONE_CONF}" || error "Failed to fetch Rclone config"
+#ok "Rclone installed and configured."
 
 # ──────────────────────────────
 # ⚙️  Install Wondershaper

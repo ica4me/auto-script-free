@@ -1,23 +1,4 @@
 #!/bin/bash
-# ==========================================
-# setup_wg.sh
-# Membuat helper prioritas WireGuard:
-# - /usr/local/sbin/wg-priority-top
-# - /etc/systemd/system/wg-priority-top.service
-# - /etc/systemd/system/wg-priority-top.timer
-#
-# Tujuan:
-# - jump ke WG_NAT_WG0 selalu di PREROUTING urutan #1
-# - INPUT udp/<WG_PORT> selalu di urutan #1
-# - rapikan legacy UDP redirect:
-#   hapus 1:65535 -> 36712 jika ada
-#   pasang 1:65533 -> 36712 jika belum ada
-#
-# Pemakaian:
-#   bash setup_wg.sh
-#   bash setup_wg.sh 65535
-#   bash setup_wg.sh 65535 eth0
-# ==========================================
 
 set -euo pipefail
 

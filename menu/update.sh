@@ -58,9 +58,6 @@ biji=$(date +"%Y-%m-%d" -d "$dateFromServer")
 
 # Repository
 REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
-pwadm="@Ridwan112#"
-Username="xwan"
-Password="$pwadm"
 
 # -----------------------------
 # Download & Setup Menu
