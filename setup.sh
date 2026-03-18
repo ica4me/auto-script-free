@@ -580,9 +580,9 @@ sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install-protect-reboot.sh && chmod +x install-protect-reboot.sh && bash install-protect-reboot.sh
 rm install-protect-reboot.sh
 sleep 5
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/vps-oke.sh && chmod +x vps-oke.sh && bash vps-oke.sh
-rm vps-oke.sh
-sleep 3
+#wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/vps-oke.sh && chmod +x vps-oke.sh && bash vps-oke.sh
+#rm vps-oke.sh
+#sleep 3
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-dropbear.sh && chmod +x fix-dropbear.sh && ./fix-dropbear.sh
 rm fix-dropbear.sh
 sleep 3
