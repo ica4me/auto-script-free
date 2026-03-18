@@ -44,7 +44,7 @@ Port 22
 # Izin Login
 PermitRootLogin yes
 PasswordAuthentication yes
-PubkeyAuthentication yes
+PubkeyAuthentication no
 ChallengeResponseAuthentication no
 
 # Fitur Lain
