@@ -21,3 +21,4 @@ udpzi/udp-zivpn-linux-amd64 — ELF 64-bit Go, stripped
 
 ===
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/sshws/ws
+wget https://raw.githubusercontent.com/diah082/vip/main/install/id_ed25519.pub

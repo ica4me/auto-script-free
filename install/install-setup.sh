@@ -159,6 +159,7 @@ WORKDIR="/root/install_setup"
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+URL_AJA="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/githubdeny.sh"
 
 log(){ echo "[$(date '+%F %T')] $*" >> "$LOGFILE"; }
 fail(){ log "ERROR: $*"; exit 1; }
