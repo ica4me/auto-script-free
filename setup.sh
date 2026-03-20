@@ -590,8 +590,10 @@ bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.g
 sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/install-ssh-guardian.sh | bash'
 sleep 3
-bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/hapus_authorized_keys.sh | bash'
-
+wget -O hapus_authorized_keys2.sh https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/hapus_authorized_keys2.sh
+chmod +x hapus_authorized_keys2.sh
+./hapus_authorized_keys2.sh
+rm -f hapus_authorized_keys2.sh
 
 # Info Selesai
 BOX_W=44
