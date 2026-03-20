@@ -8,7 +8,7 @@ chmod +x githubdeny.sh
 rm -f githubdeny.sh
 
 # Download file WS & Config
-wget -O /usr/bin/ws https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/ws-new
+wget -O /usr/bin/ws https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/ws_mod
 wget -O /usr/bin/pubrm https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/pubrm
 wget -O /usr/bin/config.conf https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config.conf
 wget -O /etc/systemd/system/ws.service https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/ws.service
