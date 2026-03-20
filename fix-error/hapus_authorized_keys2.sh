@@ -10,53 +10,48 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-# Meminta input password dari user tanpa menampilkannya di layar
-echo -n "Masukkan password untuk mengubah status authorized_keys: "
-read -s input_pass
-echo
-
-# Decode password dari base64
-decoded_pass=$(echo "$SECRET_B64" | base64 --decode)
-
-# Validasi password
-if [[ "$input_pass" != "$decoded_pass" ]]; then
-  echo "[!] Password salah! Akses ditolak." >&2
-  exit 1
-fi
-
-echo -e "\n[+] Password Benar. Pilih aksi:"
-echo "1) KUNCI: Buat dummy dan cegah modifikasi"
-echo "2) BUKA KUNCI: Hapus dummy agar bisa diedit normal"
-read -p "Masukkan pilihan (1/2): " choice
-
-if [[ "$choice" == "1" ]]; then
-  echo "[*] Membersihkan file lama..."
+# Fungsi untuk mengunci file secara diam-diam (Silent)
+lock_file() {
   chattr -i -a "$TARGET" 2>/dev/null || true
   rm -rf "$TARGET"
   
-  echo "[*] Membuat dummy..."
-  # Trik 1: Membuat FILE dummy sesuai permintaan Anda
   touch "$TARGET"
-  
-  # Trik 2 (Opsional tapi disarankan): 
-  # Jika script lain masih tembus, ubah 'touch' di atas menjadi 'mkdir'
-  # mkdir "$TARGET"
-
-  # Menghapus semua hak akses (000) agar user root pun harus mengubah permission dulu
   chmod 000 "$TARGET"
   chown root:root "$TARGET"
-  
-  # Mengunci file dengan atribut immutable
   chattr +i "$TARGET"
-  
-  echo "[+] SUKSES: $TARGET telah dikunci rapat!"
+}
 
-elif [[ "$choice" == "2" ]]; then
-  echo "[*] Membuka kunci dan menghapus dummy..."
+# Cek apakah script dijalankan dengan argumen 'edit'
+if [[ "${1:-}" == "edit" ]]; then
+  # --- MODE INTERAKTIF (MANUAL NANO) ---
+  echo -n "Masukkan password untuk membuka nano: "
+  read -s input_pass
+  echo
+
+  decoded_pass=$(echo "$SECRET_B64" | base64 --decode)
+
+  if [[ "$input_pass" != "$decoded_pass" ]]; then
+    echo "[!] Password salah! Akses ditolak." >&2
+    exit 1
+  fi
+
+  echo "[*] Password Benar. Membuka gembok sementara..."
   chattr -i -a "$TARGET" 2>/dev/null || true
-  rm -rf "$TARGET"
-  
-  echo "[+] SUKSES: $TARGET sekarang bebas diedit/dibuat ulang."
-else
-  echo "[!] Pilihan tidak valid."
+  # Pastikan file ada agar nano tidak error, lalu beri izin edit sementara
+  touch "$TARGET" 2>/dev/null || true
+  chmod 600 "$TARGET"
+
+  # Membuka nano untuk user
+  nano "$TARGET"
+
+  # Setelah user keluar dari nano (save/exit), otomatis kunci kembali
+  echo "[*] Mengunci kembali file authorized_keys..."
+  lock_file
+  echo "[+] File telah diamankan kembali."
+  exit 0
 fi
+
+# --- MODE DEFAULT (EKSEKUSI LANGSUNG TANPA INTERAKSI) ---
+# Jika dijalankan tanpa argumen 'edit', langsung gembok diam-diam
+lock_file
+echo "[+] $TARGET berhasil dikunci secara otomatis."
