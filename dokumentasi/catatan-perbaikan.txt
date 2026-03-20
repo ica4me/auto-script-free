@@ -1,12 +1,13 @@
 =========hold=========
 udp-custom/udp-custom-linux-amd64
-sshws/ws
-udp-custom/ws
 udpzi/udp-zivpn-linux-amd64
 sshws/ohpserver
 install/badvpn
 slowdns/dnstt-client
 slowdns/dnstt-server
+sshws/ws
+udp-custom/ws
+
 
 ==binary===
 install/badvpn — ELF 64-bit
