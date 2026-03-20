@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # INSTALLER PRODUCTION STABLE
 # Debian 9–13 / Ubuntu 16.04–24+
+# Enhanced: System-wide blocking of GitHub user "diah082"
 
 set -Eeo pipefail
 
@@ -12,6 +13,8 @@ TZ="Asia/Jakarta"
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+
+BLOCKED_USER="diah082"
 
 ########################################
 # UTIL
@@ -39,7 +42,7 @@ apt_quiet() {
 }
 
 ########################################
-# BLOCK URL RAW GITHUB USER DIAH082
+# BLOCK URL RAW GITHUB USER DIAH082 (script-internal)
 ########################################
 
 is_blocked_url() {
@@ -48,9 +51,16 @@ is_blocked_url() {
   lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
 
   case "$lower" in
-    https://raw.githubusercontent.com/diah082/*) return 0 ;;
-    http://raw.githubusercontent.com/diah082/*)  return 0 ;;
-    *) return 1 ;;
+    *"github.com/$BLOCKED_USER"*)
+      return 0 ;;
+    *"raw.githubusercontent.com/$BLOCKED_USER"*)
+      return 0 ;;
+    *"gist.github.com/$BLOCKED_USER"*)
+      return 0 ;;
+    *"api.github.com/users/$BLOCKED_USER"*)
+      return 0 ;;
+    *)
+      return 1 ;;
   esac
 }
 
@@ -99,6 +109,130 @@ run_script() {
   bash "$file" || fail "$name gagal"
 
   rm -f "$file"
+}
+
+########################################
+# SYSTEM-WIDE WRAPPER UNTUK CURL/WGET
+########################################
+
+setup_block_wrappers() {
+  log "Memasang wrapper sistem untuk curl dan wget (blokir $BLOCKED_USER)"
+
+  # Fungsi untuk membuat wrapper curl
+  create_curl_wrapper() {
+    local orig_curl
+    if [ -x /usr/bin/curl ]; then
+      orig_curl="/usr/bin/curl"
+    elif [ -x /usr/local/bin/curl ]; then
+      orig_curl="/usr/local/bin/curl"
+    else
+      log "curl tidak ditemukan, lewati pembuatan wrapper"
+      return 0
+    fi
+
+    # Pindahkan binary asli
+    if [ ! -f "${orig_curl}.orig" ]; then
+      mv "$orig_curl" "${orig_curl}.orig" || return 1
+    fi
+
+    cat > "$orig_curl" <<'EOF'
+#!/bin/bash
+# Wrapper curl untuk memblokir akses ke username tertentu
+ORIG_CURL="%s"
+BLOCKED_USER="diah082"
+
+is_blocked_url() {
+    local url="$1"
+    local lower
+    lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        *"github.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"raw.githubusercontent.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"gist.github.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"api.github.com/users/$BLOCKED_USER"*)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+for arg in "$@"; do
+    if [[ "$arg" =~ ^https?:// ]]; then
+        if is_blocked_url "$arg"; then
+            echo "ERROR: Akses ke $arg diblokir (user $BLOCKED_USER)" >&2
+            exit 1
+        fi
+    fi
+done
+
+exec "$ORIG_CURL" "$@"
+EOF
+    sed -i "s|%s|${orig_curl}.orig|g" "$orig_curl"
+    chmod +x "$orig_curl"
+    log "Wrapper curl dipasang di $orig_curl"
+  }
+
+  # Fungsi untuk membuat wrapper wget
+  create_wget_wrapper() {
+    local orig_wget
+    if [ -x /usr/bin/wget ]; then
+      orig_wget="/usr/bin/wget"
+    elif [ -x /usr/local/bin/wget ]; then
+      orig_wget="/usr/local/bin/wget"
+    else
+      log "wget tidak ditemukan, lewati pembuatan wrapper"
+      return 0
+    fi
+
+    if [ ! -f "${orig_wget}.orig" ]; then
+      mv "$orig_wget" "${orig_wget}.orig" || return 1
+    fi
+
+    cat > "$orig_wget" <<'EOF'
+#!/bin/bash
+# Wrapper wget untuk memblokir akses ke username tertentu
+ORIG_WGET="%s"
+BLOCKED_USER="diah082"
+
+is_blocked_url() {
+    local url="$1"
+    local lower
+    lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+        *"github.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"raw.githubusercontent.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"gist.github.com/$BLOCKED_USER"*)
+            return 0 ;;
+        *"api.github.com/users/$BLOCKED_USER"*)
+            return 0 ;;
+        *)
+            return 1 ;;
+    esac
+}
+
+for arg in "$@"; do
+    if [[ "$arg" =~ ^https?:// ]]; then
+        if is_blocked_url "$arg"; then
+            echo "ERROR: Akses ke $arg diblokir (user $BLOCKED_USER)" >&2
+            exit 1
+        fi
+    fi
+done
+
+exec "$ORIG_WGET" "$@"
+EOF
+    sed -i "s|%s|${orig_wget}.orig|g" "$orig_wget"
+    chmod +x "$orig_wget"
+    log "Wrapper wget dipasang di $orig_wget"
+  }
+
+  create_curl_wrapper || fail "Gagal memasang wrapper curl"
+  create_wget_wrapper || fail "Gagal memasang wrapper wget"
 }
 
 ########################################
@@ -182,6 +316,7 @@ WORKDIR="/root/install_setup"
 URL_KUNCI="https://raw.githubusercontent.com/ica4me/auto-script-free/main/kunci-ssh.sh"
 URL_UBAH="https://raw.githubusercontent.com/ica4me/auto-script-free/main/ubah-ssh.sh"
 URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-profile.sh"
+BLOCKED_USER="diah082"
 
 log(){ echo "[$(date '+%F %T')] $*" >> "$LOGFILE"; }
 fail(){ log "ERROR: $*"; exit 1; }
@@ -190,10 +325,11 @@ is_blocked_url() {
   local url="${1:-}"
   local lower
   lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
-
   case "$lower" in
-    https://raw.githubusercontent.com/diah082/*) return 0 ;;
-    http://raw.githubusercontent.com/diah082/*)  return 0 ;;
+    *"github.com/$BLOCKED_USER"*) return 0 ;;
+    *"raw.githubusercontent.com/$BLOCKED_USER"*) return 0 ;;
+    *"gist.github.com/$BLOCKED_USER"*) return 0 ;;
+    *"api.github.com/users/$BLOCKED_USER"*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -237,6 +373,9 @@ sleep 2
 EOF
 
   chmod +x "$WORKDIR/runner.sh"
+
+  # Pasang wrapper sistem sebelum menjalankan runner
+  setup_block_wrappers
 
   screen -dmS "$SESSION_NAME" bash "$WORKDIR/runner.sh"
 
