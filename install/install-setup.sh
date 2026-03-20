@@ -117,37 +117,49 @@ run_script() {
 }
 
 ########################################
-# CREATE WRAPPERS
+# CREATE WRAPPERS (FIXED)
 ########################################
 
 create_wrapper() {
-  local binary="$1"
-  local wrapper_content="$2"
-  local orig="${binary}.orig"
+    local binary="$1"
+    local wrapper_content="$2"
+    local orig="${binary}.orig"
 
-  if [ ! -x "$binary" ]; then
-    log "Binary tidak ditemukan atau tidak bisa dieksekusi: $binary"
-    return 1
-  fi
+    # Check if binary exists and is executable
+    if [ ! -x "$binary" ]; then
+        log "Binary tidak ditemukan atau tidak bisa dieksekusi: $binary"
+        return 1
+    fi
 
-  # Backup original jika belum ada
-  if [ ! -f "$orig" ]; then
-    mv "$binary" "$orig" || {
-      log "Gagal memindahkan $binary ke $orig"
-      return 1
-    }
-    log "Original $binary -> $orig"
-  else
-    log "Backup $orig sudah ada, tidak membuat ulang"
-  fi
+    # Backup original if not already backed up
+    if [ ! -f "$orig" ]; then
+        mv "$binary" "$orig" || {
+            log "Gagal memindahkan $binary ke $orig"
+            return 1
+        }
+        log "Original $binary -> $orig"
+    else
+        log "Backup $orig sudah ada, tidak membuat ulang backup"
+        # Remove current binary if it exists (might be a broken wrapper)
+        [ -f "$binary" ] && rm -f "$binary"
+    fi
 
-  # Tulis wrapper dan ganti placeholder %s dengan path original
-  cat > "$binary" <<EOF
+    # Write wrapper
+    cat > "$binary" <<EOF
 $wrapper_content
 EOF
-  sed -i "s|%s|${orig}|g" "$binary"
-  chmod +x "$binary"
-  log "Wrapper dipasang di $binary"
+    # Replace placeholder %s with original binary path
+    sed -i "s|%s|${orig}|g" "$binary"
+    chmod +x "$binary"
+    log "Wrapper dipasang di $binary"
+
+    # Quick verification: check if placeholder is gone
+    if grep -q '%s' "$binary"; then
+        log "ERROR: Placeholder %s masih ada di $binary"
+        return 1
+    fi
+
+    return 0
 }
 
 setup_block_wrappers() {
