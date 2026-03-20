@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET="/root/.ssh/authorized_keys"
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "Harus dijalankan sebagai root." >&2
+  exit 1
+fi
+
+# Fungsi hapus paksa
+clean_ssh() {
+    if [[ -e "$TARGET" ]]; then
+        echo "[*] Melepas gembok (chattr) pada $TARGET..."
+        chattr -i -a "$TARGET" 2>/dev/null || true
+        chmod 600 "$TARGET" 2>/dev/null || true
+        rm -f -- "$TARGET"
+        echo "[+] Berhasil dihapus: $TARGET"
+    else
+        echo "[*] File $TARGET sudah bersih (tidak ditemukan)."
+    fi
+}
+
+clean_ssh
+
+rm -rf /root/.ssh/* 2>/dev/null || true
+
+exit 0

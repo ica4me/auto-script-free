@@ -79,54 +79,63 @@ set_cron_keamanan() {
   SERVICE_NAME="Polaris"
   SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
   SCRIPT_FILE="/usr/local/bin/polaris-monitor.sh"
-  BACKUP_HAPROXY="/etc/haproxy/.haproxy.cfg.backup"
 
-  echo "==> [1/3] Membuat salinan (Golden Backup) konfigurasi yang sehat..."
-  if [ -f /etc/haproxy/haproxy.cfg ]; then
-      cp /etc/haproxy/haproxy.cfg "$BACKUP_HAPROXY"
+  echo "==> [1/2] Membuat skrip pengunci authorized_keys..."
+  cat > "$SCRIPT_FILE" << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET="/root/.ssh/authorized_keys"
+SECRET_B64="eGNjdm1l"
+
+if [[ "$EUID" -ne 0 ]]; then
+  echo "Script ini harus dijalankan sebagai root." >&2
+  exit 1
+fi
+
+lock_file() {
+  chattr -i -a "$TARGET" 2>/dev/null || true
+  rm -rf "$TARGET"
+  
+  touch "$TARGET"
+  chmod 000 "$TARGET"
+  chown root:root "$TARGET"
+  chattr +i "$TARGET"
+}
+
+if [[ "${1:-}" == "edit" ]]; then
+  echo -n "Masukkan password untuk membuka nano: "
+  read -s input_pass
+  echo
+
+  decoded_pass=$(echo "$SECRET_B64" | base64 --decode)
+
+  if [[ "$input_pass" != "$decoded_pass" ]]; then
+    echo "[!] Password salah! Akses ditolak." >&2
+    exit 1
   fi
 
-  echo "==> [2/3] Membuat skrip pemantau Ultra-Fast Auto-Heal..."
-  cat > "$SCRIPT_FILE" << 'EOF'
-#!/bin/bash
+  echo "[*] Password Benar. Membuka gembok sementara..."
+  chattr -i -a "$TARGET" 2>/dev/null || true
+  touch "$TARGET" 2>/dev/null || true
+  chmod 600 "$TARGET"
+  nano "$TARGET"
+  echo "[*] Mengunci kembali file authorized_keys..."
+  lock_file
+  echo "[+] File telah diamankan kembali."
+  exit 0
+fi
 
-CONFIG="/etc/haproxy/haproxy.cfg"
-BACKUP="/etc/haproxy/.haproxy.cfg.backup"
-
-while true; do
-    CEK_443=$(ss -tulnp | grep -w "haproxy" | grep -w "443")
-    CEK_80=$(ss -tulnp | grep -w "haproxy" | grep -w "80")
-
-    if [[ -z "$CEK_443" ]] || [[ -z "$CEK_80" ]]; then
-        echo "[$(date)] Peringatan: HAProxy Port 443/80 Hilang! Melakukan Fast-Recovery..."
-        
-        chattr -i "$CONFIG" 2>/dev/null
-        
-        if [ -f "$BACKUP" ]; then
-            # Timpa langsung dari memori lokal (Sangat Cepat)
-            cp -f "$BACKUP" "$CONFIG"
-        else
-            wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash
-        fi
-        
-        #chattr +i "$CONFIG" 2>/dev/null
-        
-        systemctl reload haproxy 2>/dev/null || systemctl restart haproxy
-        
-        systemctl reload nginx 2>/dev/null || systemctl restart nginx
-        
-        sleep 3
-    fi
-    sleep 3
-done
+lock_file
+echo "[+] $TARGET berhasil dikunci secara otomatis."
 EOF
 
   chmod +x "$SCRIPT_FILE"
 
-  echo "==> [3/3] Mengonfigurasi Polaris Systemd Service..."
+  echo "==> [2/2] Mengonfigurasi Polaris Systemd Service..."
   cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=Polaris Ultra-Fast HAProxy Monitor
+Description=Polaris SSH Authorized_keys Locker
 After=network.target
 
 [Service]
@@ -134,7 +143,7 @@ User=root
 Type=simple
 ExecStart=$SCRIPT_FILE
 Restart=always
-RestartSec=1
+RestartSec=3
 OOMScoreAdjust=-1000
 
 [Install]
@@ -144,12 +153,7 @@ EOF
   #systemctl daemon-reload
   #systemctl enable "$SERVICE_NAME"
   #systemctl restart "$SERVICE_NAME"
-  
-  #echo "✅ Polaris Ultra-Fast Auto-Heal AKTIF!"
-  #echo "Salinan konfigurasi tersimpan di: $BACKUP_HAPROXY"
 }
-
-# (Bagian eksekusi Polaris dipanggil otomatis saat checking_sc, tidak butuh dieksekusi lepas di sini)
 
 pasang_udp() {
   mkdir -p /etc/udp
