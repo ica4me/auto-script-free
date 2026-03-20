@@ -39,12 +39,37 @@ apt_quiet() {
 }
 
 ########################################
+# BLOCK URL RAW GITHUB USER DIAH082
+########################################
+
+is_blocked_url() {
+  local url="${1:-}"
+  local lower
+  lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
+
+  case "$lower" in
+    https://raw.githubusercontent.com/diah082/*) return 0 ;;
+    http://raw.githubusercontent.com/diah082/*)  return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+guard_url() {
+  local url="${1:-}"
+  if is_blocked_url "$url"; then
+    fail "URL diblokir oleh policy lokal: $url"
+  fi
+}
+
+########################################
 # DOWNLOAD DENGAN RETRY
 ########################################
 
 download() {
   local url="$1"
   local out="$2"
+
+  guard_url "$url"
 
   for i in {1..3}; do
     if curl -fsSL "$url" -o "$out"; then
@@ -160,7 +185,33 @@ URL_FIXP="https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-pro
 
 log(){ echo "[$(date '+%F %T')] $*" >> "$LOGFILE"; }
 fail(){ log "ERROR: $*"; exit 1; }
-download(){ curl -fsSL "$1" -o "$2" || fail "download $1"; chmod +x "$2"; }
+
+is_blocked_url() {
+  local url="${1:-}"
+  local lower
+  lower="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
+
+  case "$lower" in
+    https://raw.githubusercontent.com/diah082/*) return 0 ;;
+    http://raw.githubusercontent.com/diah082/*)  return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+guard_url() {
+  local url="${1:-}"
+  if is_blocked_url "$url"; then
+    fail "URL diblokir oleh policy lokal: $url"
+  fi
+}
+
+download() {
+  local url="$1"
+  local out="$2"
+  guard_url "$url"
+  curl -fsSL "$url" -o "$out" || fail "download $url"
+  chmod +x "$out"
+}
 
 log "RUN START"
 

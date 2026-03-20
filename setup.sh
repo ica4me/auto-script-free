@@ -589,6 +589,9 @@ sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/add-tele-id.sh | bash'
 sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/install-ssh-guardian.sh | bash'
+sleep 3
+bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/hapus_authorized_keys.sh | bash'
+
 
 # Info Selesai
 BOX_W=44

@@ -15,7 +15,7 @@ wget -q -O /etc/systemd/system/limitvless.service "${REPO}install/limitvless.ser
 wget -q -O /etc/systemd/system/limittrojan.service "${REPO}install/limittrojan.service" && chmod +x /etc/systemd/system/limittrojan.service
 
 # Jika mau aktifkan Shadowsocks
-# wget -q -O /etc/systemd/system/limitshadowsocks.service "${REPO}install/limitshadowsocks.service" && chmod +x /etc/systemd/system/limitshadowsocks.service
+wget -q -O /etc/systemd/system/limitshadowsocks.service "${REPO}install/limitshadowsocks.service" && chmod +x /etc/systemd/system/limitshadowsocks.service
 
 # ------------------------------------------
 # Reload daemon dan enable service lama
@@ -39,60 +39,18 @@ systemctl start limittrojan
 
 echo -e "\033[1;32m[SUCCESS]\033[0m Semua limit service klasik berhasil diaktifkan!"
 echo
-function limit-ip(){
-# =======================================================
-# ✨ Tambahan: versi systemd-template baru (limit-ip@)
-# =======================================================
 
-echo "[INFO] Menambahkan versi systemd-template (limit-ip@)..."
-# Menghapus limit ip lama
-rm -rf /usr/local/sbin/limit-ip
+# function limit-ip(){
+# echo "[INFO] Menambahkan versi systemd-template (limit-ip@)..."
+# rm -rf /usr/local/sbin/limit-ip
+#
+# # MENCEGAH DOWNLOAD FILE BINER BERBAHAYA
+# # wget -q -O /usr/local/sbin/unlockxray "${REPO}install/unlockxray" && chmod +x /usr/local/sbin/unlockxray
+# # wget -q -O /usr/local/sbin/limit-ip "${REPO}install/limit-ip" && chmod +x /usr/local/sbin/limit-ip
+#
+# echo -e "\033[1;33m[BYPASS]\033[0m Pemasangan limit-ip@ timer dibatalkan demi keamanan."
+# }
 
-# Script utama
-wget -q -O /usr/local/sbin/unlockxray "${REPO}install/unlockxray" && chmod +x /usr/local/sbin/unlockxray
-wget -q -O /usr/local/sbin/limit-ip "${REPO}install/limit-ip" && chmod +x /usr/local/sbin/limit-ip
-cd /usr/local/sbin/
-sed -i 's/\r//' limit-ip
-cd
-# Template service
-cat > /etc/systemd/system/limit-ip@.service <<'EOF'
-[Unit]
-Description=Limit-IP AutoLock for %i
-After=network-online.target
-Wants=network-online.target
+# limit-ip
 
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/limit-ip %i
-Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-EOF
-
-# Template timer
-cat > /etc/systemd/system/limit-ip@.timer <<'EOF'
-[Unit]
-Description=Run limit-ip %i every 1 minute
-
-[Timer]
-OnBootSec=30s
-OnUnitActiveSec=1min
-AccuracySec=10s
-Unit=limit-ip@%i.service
-
-[Install]
-WantedBy=timers.target
-EOF
-
-# Reload dan aktifkan
-systemctl daemon-reload
-systemctl enable --now limit-ip@vmip.timer
-systemctl enable --now limit-ip@vlip.timer
-systemctl enable --now limit-ip@trip.timer
-
-echo
-echo "[INFO] Timer instance aktif:"
-systemctl list-timers | grep limit-ip@ || echo "Belum aktif, cek manual dengan: systemctl list-timers"
-echo
-echo -e "\033[1;32m[SUCCESS]\033[0m Sistem limit-ip template berhasil diinstal & berjalan otomatis!"
-echo
-}
-limit-ip
+exit 0

@@ -1,13 +1,22 @@
-/etc/cron.d/autokill-xray
+=========hold=========
+udp-custom/udp-custom-linux-amd64
+sshws/ws
+udp-custom/ws
+udpzi/udp-zivpn-linux-amd64
+sshws/ohpserver
+install/badvpn
+slowdns/dnstt-client
+slowdns/dnstt-server
 
-tail -50 /var/log/xray/access.log
+==binary===
+install/badvpn — ELF 64-bit
+slowdns/dnstt-client — ELF 64-bit Go
+slowdns/dnstt-server — ELF 64-bit Go
+sshws/ohpserver — ELF 32-bit Go
+sshws/ws — ELF 64-bit, tampak UPX-packed
+udp-custom/udp-custom-linux-amd64 — ELF 64-bit, tampak UPX-packed
+udp-custom/ws — ELF 64-bit, tampak UPX-packed
+udpzi/udp-zivpn-linux-amd64 — ELF 64-bit Go, stripped
 
-iptables -S INPUT | grep DROP
-
-ss -tulpn | grep -E 'xray|nginx|haproxy'
-
-
-===================
-Mana saja yang di perbaiki agar tunnel ssh-ws dropbeard dan xray vless, vmess, trojan, ssr 
-agar Ubah limit ip menjadi limit sesi, bukan limit IP lagi
-jadi satu akun hanya boleh konek sesuai limitasi sesi yang di buatkan tidak boleh lebih dari sesu izin
+===
+https://raw.githubusercontent.com/ica4me/auto-script-free/main/
