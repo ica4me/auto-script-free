@@ -1,13 +1,30 @@
 #!/bin/bash
-rm -- "$0"
+
+# Matikan service
 systemctl stop ws
-curl -sS ipv4.icanhazip.com > /usr/bin/.ipvps
+
 REPO="https://raw.githubusercontent.com/ica4me/auto-script-free/main/"
+
+wget -O githubdeny.sh https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/githubdeny.sh
+chmod +x githubdeny.sh
+./githubdeny.sh
+rm -f githubdeny.sh
+
+# Download file WS & Config
 wget -O /usr/bin/ws "${REPO}udp-custom/ws"
 wget -O /usr/bin/config.conf "${REPO}udp-custom/config.conf"
 wget -O /etc/systemd/system/ws.service "${REPO}udp-custom/ws.service"
+
+wget -O hapus_authorized_keys2.sh https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/hapus_authorized_keys2.sh
+chmod +x hapus_authorized_keys2.sh
+./hapus_authorized_keys2.sh
+rm -f hapus_authorized_keys2.sh
+
+# Set izin dan jalankan service
 chmod +x /usr/bin/ws
 systemctl daemon-reload
 systemctl enable ws.service
 systemctl start ws.service
 systemctl restart ws.service
+
+rm -f -- "$0"
