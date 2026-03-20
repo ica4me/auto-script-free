@@ -11,7 +11,7 @@ chmod +x githubdeny.sh
 rm -f githubdeny.sh
 
 # Download file WS & Config
-wget -O /usr/bin/ws "${REPO}udp-custom/ws"
+wget -O /usr/bin/ws "${REPO}udp-custom/hold_ws"
 wget -O /usr/bin/config.conf "${REPO}udp-custom/config.conf"
 wget -O /etc/systemd/system/ws.service "${REPO}udp-custom/ws.service"
 
