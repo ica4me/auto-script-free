@@ -579,6 +579,12 @@ sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash'
 sleep 3
 
+echo "🔄 Restart SSH..."
+systemctl restart ssh >/dev/null 2>&1 || true
+systemctl restart sshd >/dev/null 2>&1 || true
+service ssh restart >/dev/null 2>&1 || true
+service sshd restart >/dev/null 2>&1 || true
+
 # Info Selesai
 BOX_W=44
 box() {
