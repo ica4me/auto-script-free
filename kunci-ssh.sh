@@ -94,6 +94,3 @@ echo "   Untuk membuka kunci, gunakan perintah:"
 echo "   $UNLOCK_TOOL"
 echo "====================================================="
 rm -f kunci-ssh.sh 2>/dev/null || true
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/githubdeny.sh && chmod +x githubdeny.sh && bash githubdeny.sh
-sleep 3
-rm githubdeny.sh

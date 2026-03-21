@@ -44,14 +44,7 @@ Tunggu proses selesai → VPS otomatis reboot.
 
 ### 1) Update Sistem & Install Screen
 
-Login kembali ke VPS setelah reboot, lalu jalankan update:
-
-```bash
-sudo apt update && sudo apt upgrade -y && sudo apt install -y screen wget curl jq
-```
-
-Wajib perbaiki Error -bash: sudo: command not found
-kalau Tidak proses Install Gagal
+Error -bash: sudo: command not found
 
 ```bash
 cat <<'EOF' > /usr/local/bin/sudo && chmod +x /usr/local/bin/sudo
@@ -65,6 +58,12 @@ fi
 echo "sudo not installed and you are not root" >&2
 exit 1
 EOF
+```
+
+Update Repo
+
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt install -y screen wget curl jq
 ```
 
 ---
@@ -107,14 +106,14 @@ Gunakan `screen` agar instalasi tetap berjalan jika SSH terputus.
 
 ---
 
-### 5) Finis Install (wajib)
+### 5) Finis Install
 
 ```bash
 sudo bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/install/finish-install.sh | bash'
 ```
 
 Fix ALL file usr-local-sbin
-Penganti perintah (sed -i 's/\r$//' /usr/local/sbin/\*), sed tidak aman.
+Penganti comand (sed -i 's/\r$//' /usr/local/sbin/\*), sed tidak aman.
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-usr-local-sbin.sh | bash

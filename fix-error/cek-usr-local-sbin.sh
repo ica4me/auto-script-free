@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Cek semua script bisa jalan atau tidak(oke/false)
-# nano cek-usr-local-sbin.sh
-# chmod +x cek-usr-local-sbin.sh
-# ./cek-usr-local-sbin.sh
-
 DIR="/usr/local/sbin"
 
 for f in "$DIR"/*; do

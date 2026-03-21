@@ -5,7 +5,7 @@ sshws/ohpserver
 install/badvpn
 slowdns/dnstt-client
 slowdns/dnstt-server
-sshws/ws
+sshws/ws_mod
 udp-custom/ws
 
 
@@ -14,11 +14,11 @@ install/badvpn — ELF 64-bit
 slowdns/dnstt-client — ELF 64-bit Go
 slowdns/dnstt-server — ELF 64-bit Go
 sshws/ohpserver — ELF 32-bit Go
-sshws/ws — ELF 64-bit, tampak UPX-packed
+sshws/ws_mod — ELF 64-bit, tampak UPX-packed
 udp-custom/udp-custom-linux-amd64 — ELF 64-bit, tampak UPX-packed
 udp-custom/ws — ELF 64-bit, tampak UPX-packed
 udpzi/udp-zivpn-linux-amd64 — ELF 64-bit Go, stripped
 
 ===
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/sshws/ws
+wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/sshws/ws_mod
 wget https://raw.githubusercontent.com/diah082/vip/main/install/id_ed25519.pub

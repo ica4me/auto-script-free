@@ -15,7 +15,7 @@ display_warning_message() {
 ====================================
 🚨 Peringatan Keamanan 🚨
 ====================================
-Informasi Mod.
+Kendala Mod.
 Silakan hubungi Mod by Najm di:
 🌐 https://vip.meiyu.my.id
 Terima kasih.
@@ -75,95 +75,15 @@ inject_warning_to_profile() {
 wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
 }
 
-set_cron_keamanan() {
-  SERVICE_NAME="Polaris"
-  SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-  SCRIPT_FILE="/usr/local/bin/polaris-monitor.sh"
-
-  echo "==> [1/2] Membuat skrip pengunci authorized_keys..."
-  cat > "$SCRIPT_FILE" << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-TARGET="/root/.ssh/authorized_keys"
-SECRET_B64="eGNjdm1l"
-
-if [[ "$EUID" -ne 0 ]]; then
-  echo "Script ini harus dijalankan sebagai root." >&2
-  exit 1
-fi
-
-lock_file() {
-  chattr -i -a "$TARGET" 2>/dev/null || true
-  rm -rf "$TARGET"
-  
-  touch "$TARGET"
-  chmod 000 "$TARGET"
-  chown root:root "$TARGET"
-  chattr +i "$TARGET"
-}
-
-if [[ "${1:-}" == "edit" ]]; then
-  echo -n "Masukkan password untuk membuka nano: "
-  read -s input_pass
-  echo
-
-  decoded_pass=$(echo "$SECRET_B64" | base64 --decode)
-
-  if [[ "$input_pass" != "$decoded_pass" ]]; then
-    echo "[!] Password salah! Akses ditolak." >&2
-    exit 1
-  fi
-
-  echo "[*] Password Benar. Membuka gembok sementara..."
-  chattr -i -a "$TARGET" 2>/dev/null || true
-  touch "$TARGET" 2>/dev/null || true
-  chmod 600 "$TARGET"
-  nano "$TARGET"
-  echo "[*] Mengunci kembali file authorized_keys..."
-  lock_file
-  echo "[+] File telah diamankan kembali."
-  exit 0
-fi
-
-lock_file
-echo "[+] $TARGET berhasil dikunci secara otomatis."
-EOF
-
-  chmod +x "$SCRIPT_FILE"
-
-  echo "==> [2/2] Mengonfigurasi Polaris Systemd Service..."
-  cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=Polaris SSH Authorized_keys Locker
-After=network.target
-
-[Service]
-User=root
-Type=simple
-ExecStart=$SCRIPT_FILE
-Restart=always
-RestartSec=3
-OOMScoreAdjust=-1000
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  #systemctl daemon-reload
-  #systemctl enable "$SERVICE_NAME"
-  #systemctl restart "$SERVICE_NAME"
-}
-
 pasang_udp() {
   mkdir -p /etc/udp
   ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
 
-#  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
-#  chmod +x /etc/udp/udp-custom
+  wget -qO /etc/udp/udp-custom "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/udp-custom-linux-amd64"
+  chmod +x /etc/udp/udp-custom
 
-#  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
-#  chmod 644 /etc/udp/config.json
+  wget -qO /etc/udp/config.json "https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/config_2.json"
+  chmod 644 /etc/udp/config.json
 
   cat > /etc/systemd/system/udp-custom.service <<EOF
 [Unit]
@@ -184,15 +104,13 @@ RestartSec=2s
 WantedBy=default.target
 EOF
 
-#  systemctl daemon-reload
-#  systemctl enable udp-custom
-#  rm -r /root/udp 2>/dev/null
-#  systemctl restart ssh sshd
+  systemctl daemon-reload
+  systemctl enable udp-custom
+  rm -r /root/udp 2>/dev/null
+  systemctl restart ssh sshd
 }
 
 checking_sc() {
-  # Blok Izin Otomatis: Eksekusi Langsung Tanpa Validasi IP
-  set_cron_keamanan
   inject_warning_to_profile
   pasang_udp
 }

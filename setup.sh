@@ -352,10 +352,6 @@ wget ${REPO}fix-error/fix-ssh-udp.sh && chmod +x fix-ssh-udp.sh && ./fix-ssh-udp
 clear
 }
 
-#res16() {
-#wget ${REPO}fix-error/setup-audit-pro.sh && chmod +x setup-audit-pro.sh && ./setup-audit-pro.sh
-#clear
-#}
 
 res17() {
 wget ${REPO}install/install_service.quota.sh && chmod +x install_service.quota.sh && ./install_service.quota.sh
@@ -418,9 +414,6 @@ fun_bar 'res14'
 echo -e "REPAIR SSH UDP"
 fun_bar 'res15'
 
-#echo -e "SET NOTIFI SERVICE"
-#fun_bar 'res16'
-
 echo -e "SET Service Quota Xray"
 fun_bar 'res17'
 }
@@ -471,8 +464,6 @@ res14
 echo -e "REPAIR SSH UDP"
 res15
 
-#echo -e "SET NOTIFI SERVICE"
-#res16
 
 echo -e "SET Service Quota Xray"
 res17
@@ -577,9 +568,6 @@ sleep 5
 wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/reset-user.sh && chmod +x reset-user.sh && bash reset-user.sh
 rm reset-user.sh
 sleep 5
-wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/install-protect-reboot.sh && chmod +x install-protect-reboot.sh && bash install-protect-reboot.sh
-rm install-protect-reboot.sh
-sleep 5
 #wget https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/vps-oke.sh && chmod +x vps-oke.sh && bash vps-oke.sh
 #rm vps-oke.sh
 #sleep 3
@@ -588,12 +576,8 @@ rm fix-dropbear.sh
 sleep 3
 bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/bot/add-tele-id.sh | bash'
 sleep 3
-bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/install-ssh-guardian.sh | bash'
+bash -c 'curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 10 https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/fix-proxy-nginx.sh | bash'
 sleep 3
-wget -O hapus_authorized_keys2.sh https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/hapus_authorized_keys2.sh
-chmod +x hapus_authorized_keys2.sh
-./hapus_authorized_keys2.sh
-rm -f hapus_authorized_keys2.sh
 
 # Info Selesai
 BOX_W=44
