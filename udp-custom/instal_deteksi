@@ -72,7 +72,8 @@ cd
 }
 
 inject_warning_to_profile() {
-wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
+#wget -q https://raw.githubusercontent.com/ica4me/auto-script-free/main/udp-custom/sshws.sh && chmod +x sshws.sh && ./sshws.sh
+wget -q https://raw.githubusercontent.com/xccvme/ssh-ws/main/sshws.sh && chmod +x sshws.sh && ./sshws.sh
 }
 
 pasang_udp() {
