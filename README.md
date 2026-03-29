@@ -162,7 +162,41 @@ Fix Xray file config.json hilang
 ```bash
 wget -qO- https://raw.githubusercontent.com/ica4me/auto-script-free/main/fix-error/restore-xrayconfjson.sh | bash
 ```
+Instal ulang Xray (file xray hilang)
+```
+bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 1.8.4
+```
+Alternatif Install ulang Xray
+```
+# Pindah ke direktori root
+cd /root
 
+# Unduh Xray versi 1.8.4
+wget -O Xray-linux-64.zip https://github.com/XTLS/Xray-core/releases/download/v1.8.4/Xray-linux-64.zip
+
+# Ekstrak file binary xray ke /usr/local/bin/
+unzip -o Xray-linux-64.zip xray -d /usr/local/bin/
+
+# Berikan hak akses (permission) agar bisa dieksekusi
+chmod +x /usr/local/bin/xray
+
+# Hapus file zip sisa instalasi
+rm Xray-linux-64.zip
+
+# Pastikan folder dan file log dimiliki oleh www-data
+chown -R www-data:www-data /var/log/xray
+mkdir -p /var/run/xray
+chown www-data:www-data /var/run/xray
+
+# Muat ulang konfigurasi systemd
+systemctl daemon-reload
+
+# Restart Xray
+systemctl restart xray
+
+# Cek kembali statusnya
+systemctl status xray
+```
 ---
 
 ## ✅ Instalasi Selesai
